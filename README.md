@@ -6,7 +6,7 @@
 
 ---
 
-## 🚀 1. Hướng dẫn các thành viên tải về và chạy trên XAMPP (Chỉ 3 phút)
+##  1. Hướng dẫn các thành viên tải về và chạy trên XAMPP 
 
 ### Bước 1: Tải code về máy
 * Bấm nút màu xanh **`<> Code`** ở góc trên bên phải trang GitHub này -> Chọn **`Download ZIP`** (hoặc dùng `git clone`).
@@ -32,7 +32,7 @@
 
 ---
 
-## 📋 2. Phân công chi tiết & Việc cần làm thêm cho 6 thành viên
+##  2. Phân công chi tiết & Việc cần làm thêm cho 6 thành viên
 
 Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm bảo cả nhóm thống nhất cấu trúc Database và giao diện. **Mỗi thành viên có trách nhiệm:**
 1. **Đọc hiểu kỹ toàn bộ code** trong các file mình phụ trách để trình bày và trả lời câu hỏi vấn đáp khi bảo vệ.
@@ -40,7 +40,7 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 
 ---
 
-### 👤 Thành viên 1 (Nhóm trưởng): Thiết kế CSDL + Kết nối Core + Đăng ký / Đăng nhập / Phân quyền
+###  Thành viên 1 : Thiết kế CSDL + Kết nối Core + Đăng ký / Đăng nhập / Phân quyền
 * **File phụ trách chính:**
   * `database/shop_phukien.sql`
   * `config/db.php`
@@ -56,7 +56,7 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 
 ---
 
-### 👤 Thành viên 2: Giao diện người dùng (UI/UX Responsive) + Trang chủ + Tìm kiếm, Bộ lọc & Phân trang
+###  Thành viên 2: Giao diện người dùng (UI/UX Responsive) + Trang chủ + Tìm kiếm, Bộ lọc & Phân trang
 * **File phụ trách chính:**
   * `includes/header.php`, `includes/footer.php`
   * `index.php` (Trang chủ)
@@ -65,14 +65,14 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
   * Thanh điều hướng (Navbar) responsive, tìm kiếm theo từ khóa, hiển thị danh mục.
   * Trang chủ hiển thị phụ kiện nổi bật (Flash Sale) và phụ kiện mới.
   * Trang cửa hàng lọc theo Danh mục, Thương hiệu, Sắp xếp giá và **Phân trang (`LIMIT / OFFSET`)**.
-* **📌 VIỆC CẦN LÀM THÊM (TODO):**
+* ** VIỆC CẦN LÀM THÊM (TODO):**
   - [ ] **Thêm bộ lọc theo Khoảng giá** vào cột bên trái trang `products.php` (Ví dụ: *Dưới 1 triệu*, *Từ 1 - 3 triệu*, *Trên 3 triệu*).
   - [ ] **Nâng cấp Banner trang chủ (`index.php`):** Đổi thành dạng Slide trượt nhiều ảnh (Bootstrap Carousel) cho sinh động và bắt mắt hơn.
   - [ ] Chụp ảnh giao diện trên cả màn hình máy tính và điện thoại (Responsive) gửi cho Thành viên 6 làm Slide.
 
 ---
 
-### 👤 Thành viên 3: Trang chi tiết phụ kiện + Giỏ hàng (Cart) + Đặt hàng (Checkout) & Đơn hàng của tôi
+###  Thành viên 3: Trang chi tiết phụ kiện + Giỏ hàng (Cart) + Đặt hàng (Checkout) & Đơn hàng của tôi
 * **File phụ trách chính:**
   * `product_detail.php` (Chi tiết sản phẩm)
   * `cart.php` (Giỏ hàng Session)
@@ -82,14 +82,14 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
   * Xem chi tiết phụ kiện, đổi ảnh qua lại giữa nhiều góc chụp, hiển thị thông số kỹ thuật và mô tả HTML từ CKEditor.
   * Thêm vào giỏ hàng, sửa số lượng, xóa khỏi giỏ, tính tổng tiền.
   * Đặt hàng lưu vào 2 bảng `orders` và `order_details` (dùng Transaction), hủy đơn hàng khi đang chờ xác nhận (`pending`).
-* **📌 VIỆC CẦN LÀM THÊM (TODO):**
+* ** VIỆC CẦN LÀM THÊM (TODO):**
   - [ ] **Thêm mục "Sản phẩm liên quan (Cùng danh mục)"** ở cuối trang `product_detail.php` (hiển thị 4 sản phẩm cùng `category_id`).
   - [ ] **Thêm chức năng "Xem chi tiết các món đã mua"** trong trang `my_orders.php` (bấm vào mã đơn hàng sẽ hiện ra danh sách tên sản phẩm, số lượng, đơn giá của đơn đó).
   - [ ] Vẽ sơ đồ luồng mua hàng (Use Case / Flowchart) gửi cho Thành viên 6 đưa vào Slide.
 
 ---
 
-### 👤 Thành viên 4: Admin - Quản lý Danh mục, Thương hiệu & Sản phẩm (CRUD + CKEditor + Upload nhiều ảnh)
+###  Thành viên 4: Admin - Quản lý Danh mục, Thương hiệu & Sản phẩm (CRUD + CKEditor + Upload nhiều ảnh)
 * **File phụ trách chính:**
   * `admin/categories.php` (CRUD Danh mục)
   * `admin/products.php` (Danh sách & Xóa sản phẩm + Phân trang Admin)
@@ -97,14 +97,14 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 * **Chức năng đã có trong khung:**
   * CRUD Danh mục sản phẩm.
   * CRUD Sản phẩm có phân trang, tích hợp sẵn trình soạn thảo **CKEditor 5** và tính năng **Upload nhiều ảnh phụ** lưu vào bảng `product_images`.
-* **📌 VIỆC CẦN LÀM THÊM (TODO):**
+* ** VIỆC CẦN LÀM THÊM (TODO):**
   - [ ] **Làm thêm phần CRUD Thương hiệu (`brands`)** (Thêm, sửa, xóa các hãng như Logitech, Sony, Anker, Razer...) ngay trong trang `admin/categories.php` hoặc tách ra `admin/brands.php`.
   - [ ] **Thêm nút xóa từng ảnh phụ** trong trang chỉnh sửa sản phẩm `admin/product_form.php`.
   - [ ] Chuẩn bị phần giải thích kỹ thuật về cách hoạt động của `$_FILES` khi upload nhiều ảnh và cách nhúng CKEditor để báo cáo.
 
 ---
 
-### 👤 Thành viên 5: Admin - Dashboard Thống kê (Chart.js) + Quản lý Đơn hàng & Người dùng
+###  Thành viên 5: Admin - Dashboard Thống kê (Chart.js) + Quản lý Đơn hàng & Người dùng
 * **File phụ trách chính:**
   * `admin/index.php` (Bảng điều khiển & Biểu đồ thống kê)
   * `admin/orders.php` (Quản lý & Duyệt trạng thái đơn hàng)
@@ -114,14 +114,14 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
   * Thống kê tổng doanh thu, tổng đơn hàng, tổng sản phẩm, tổng người dùng + Biểu đồ tròn `Chart.js`.
   * Cập nhật trạng thái đơn hàng (`pending` -> `confirmed` -> `shipping` -> `completed` / `cancelled`).
   * Khóa/Mở khóa người dùng và đổi quyền `user` <-> `admin`.
-* **📌 VIỆC CẦN LÀM THÊM (TODO):**
+* ** VIỆC CẦN LÀM THÊM (TODO):**
   - [ ] **Làm chức năng "Xem chi tiết đơn hàng" trong `admin/orders.php`:** Khi Admin bấm vào 1 đơn hàng sẽ xem được đơn đó mua những phụ kiện gì, số lượng bao nhiêu.
   - [ ] **Cập nhật tự động trừ tồn kho (`stock`)** khi Admin chuyển trạng thái đơn hàng sang `completed` (Hoàn thành).
   - [ ] Thêm 1 biểu đồ thống kê số lượng đơn hàng theo từng trạng thái trong `admin/index.php`.
 
 ---
 
-### 👤 Thành viên 6: Đánh giá sản phẩm (Reviews) + Nhập dữ liệu mẫu + Deploy Hosting & Làm Slide Thuyết trình
+###  Thành viên 6: Đánh giá sản phẩm (Reviews) + Nhập dữ liệu mẫu + Deploy Hosting & Làm Slide Thuyết trình
 * **File phụ trách chính:**
   * `admin/reviews.php` (Quản lý & Xóa bình luận/đánh giá)
   * Phần form gửi đánh giá sao trong `product_detail.php`
@@ -129,7 +129,7 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 * **Chức năng đã có trong khung:**
   * Khách hàng chấm điểm (1-5 sao) và viết nhận xét ở trang chi tiết phụ kiện.
   * Admin xem danh sách toàn bộ đánh giá và xóa các bình luận vi phạm.
-* **📌 VIỆC CẦN LÀM THÊM (TODO):**
+* ** VIỆC CẦN LÀM THÊM (TODO):**
   - [ ] **Nhập thêm dữ liệu thật đẹp:** Đăng nhập vào Admin, thêm mới khoảng **10 - 12 sản phẩm phụ kiện điện tử** (có ảnh nét, nhiều ảnh phụ, thông số kỹ thuật và mô tả soạn bằng CKEditor) để trang web nhìn phong phú khi Demo.
   - [ ] **Deploy Website lên Hosting miễn phí** (InfinityFree / 000webhost / AwardSpace) để lấy **Link deploy** nộp cho giảng viên.
   - [ ] **Thiết kế Slide thuyết trình (.pptx và xuất .pdf)** bám sát yêu cầu đề bài:
@@ -140,7 +140,7 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 
 ---
 
-## 🔄 3. Quy trình làm việc chung trên GitHub cho nhóm
+##  3. Quy trình làm việc chung trên GitHub cho nhóm
 1. Mỗi thành viên chỉ chỉnh sửa các file thuộc phần phân công của mình để tránh xung đột code (Conflict).
 2. Sau khi code xong và chạy thử không lỗi trên XAMPP cá nhân:
    * Có thể dùng **Git / GitHub Desktop** để `Commit` & `Push` lên nhánh `main`.
