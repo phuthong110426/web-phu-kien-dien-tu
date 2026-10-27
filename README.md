@@ -1,7 +1,7 @@
 # 🎧 TECHGEAR - Website Bán Đồ Phụ Kiện Điện Tử (PHP & MySQL)
 
 > **Bài tập nhóm cuối kỳ môn Lập Trình Web**
-> - **Đề tài:** Website bán hàng cơ bản (Chuyên phụ kiện điện tử: Tai nghe, Bàn phím cơ, Chuột Gaming, Củ cáp sạc, Loa Bluetooth...)
+> - **Đề tài:** Website bán hàng phụ kiện điện tử (Chuyên phụ kiện điện tử: Tai nghe, Bàn phím cơ, Chuột Gaming, Củ cáp sạc, Loa Bluetooth...)
 > - **Công nghệ:** Backend **PHP 8 + MySQL (PDO)** | Frontend **HTML5, CSS3, Bootstrap 5, JavaScript, CKEditor 5, Chart.js**
 
 ---
