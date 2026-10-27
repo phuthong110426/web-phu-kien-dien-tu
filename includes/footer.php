@@ -25,7 +25,7 @@
         </div>
         <hr class="border-secondary my-3">
         <div class="text-center small text-secondary">
-            © <?= date('Y') ?> Nhóm 6 Thành Viên - Đề tài: Website Bán Phụ Kiện Điện Tử (PHP + MySQL)
+            © <?= date('Y') ?> Nhóm 11 - Đề tài: Website Bán Phụ Kiện Điện Tử (PHP + MySQL)
         </div>
     </div>
 </footer>
