@@ -72,23 +72,6 @@ $nav_categories = $pdo->query("SELECT * FROM categories WHERE status = 1 ORDER B
 </head>
 <body class="d-flex flex-column min-vh-100">
 
-<!-- Topbar -->
-<div class="bg-dark text-light py-1 small border-bottom border-secondary border-opacity-25">
-    <div class="container d-flex justify-content-between align-items-center">
-        <div>
-            <i class="bi bi-shield-check text-info me-1"></i> Phụ kiện chính hãng 100% - Bảo hành 1 đổi 1
-        </div>
-        <div>
-            <span class="me-3"><i class="bi bi-telephone me-1"></i> Hotline: 1900 6868</span>
-            <?php if (is_admin()): ?>
-                <a href="admin/index.php" class="badge bg-warning text-dark text-decoration-none">
-                    <i class="bi bi-speedometer2 me-1"></i> Vào trang Quản trị Admin
-                </a>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
-
 <!-- Main Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark navbar-tech sticky-top shadow-sm py-3">
     <div class="container">
