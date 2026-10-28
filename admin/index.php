@@ -22,39 +22,39 @@ $cat_stats = $pdo->query("
 $recent_orders = $pdo->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->fetchAll();
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="fw-bold m-0"><i class="bi bi-speedometer2 text-primary me-2"></i>Tổng Quan Hệ Thống</h4>
-    <span class="badge bg-primary px-3 py-2">Xin chào, <?= htmlspecialchars($_SESSION['user']['fullname']) ?></span>
+<div class="mb-4">
+    <h2 class="section-title">Xin chào, <?= htmlspecialchars($_SESSION['user']['fullname']) ?>.</h2>
+    <p class="section-sub">Đây là tình hình cửa hàng TechGear hôm nay.</p>
 </div>
 
 <!-- 4 Thẻ thống kê -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-primary text-white">
-            <div class="small opacity-75">Tổng Doanh Thu</div>
-            <h4 class="fw-bold my-1"><?= format_price($total_revenue) ?></h4>
-            <small><i class="bi bi-graph-up-arrow me-1"></i>Đơn hàng hợp lệ</small>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon soft-blue"><i class="bi bi-currency-exchange"></i></div>
+            <div class="stat-label">Tổng doanh thu</div>
+            <p class="stat-value"><?= format_price($total_revenue) ?></p>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-success text-white">
-            <div class="small opacity-75">Tổng Đơn Hàng</div>
-            <h4 class="fw-bold my-1"><?= $total_orders ?> đơn</h4>
-            <small><i class="bi bi-bag-check me-1"></i>Toàn hệ thống</small>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon soft-green"><i class="bi bi-bag-check"></i></div>
+            <div class="stat-label">Tổng đơn hàng</div>
+            <p class="stat-value"><?= $total_orders ?></p>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-info text-dark">
-            <div class="small opacity-75">Tổng Phụ Kiện</div>
-            <h4 class="fw-bold my-1"><?= $total_products ?> sản phẩm</h4>
-            <small><i class="bi bi-box-seam me-1"></i>Đang kinh doanh</small>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon soft-orange"><i class="bi bi-box-seam"></i></div>
+            <div class="stat-label">Phụ kiện đang bán</div>
+            <p class="stat-value"><?= $total_products ?></p>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-warning text-dark">
-            <div class="small opacity-75">Thành Viên</div>
-            <h4 class="fw-bold my-1"><?= $total_users ?> tài khoản</h4>
-            <small><i class="bi bi-people me-1"></i>Admin & Khách hàng</small>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon soft-purple"><i class="bi bi-people"></i></div>
+            <div class="stat-label">Tài khoản</div>
+            <p class="stat-value"><?= $total_users ?></p>
         </div>
     </div>
 </div>
@@ -88,7 +88,16 @@ $recent_orders = $pdo->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->f
                                 <td class="fw-bold">#<?= $o['id'] ?></td>
                                 <td><?= htmlspecialchars($o['receiver_name']) ?></td>
                                 <td class="fw-bold text-danger"><?= format_price($o['total_amount']) ?></td>
-                                <td><span class="badge bg-secondary"><?= htmlspecialchars($o['status']) ?></span></td>
+                                <?php
+                                $st = [
+                                    'pending' => ['Chờ xác nhận', 'warning'],
+                                    'confirmed' => ['Đã xác nhận', 'info'],
+                                    'shipping' => ['Đang giao', 'primary'],
+                                    'completed' => ['Hoàn thành', 'success'],
+                                    'cancelled' => ['Đã hủy', 'secondary'],
+                                ][$o['status']] ?? [$o['status'], 'secondary'];
+                                ?>
+                                <td><span class="badge bg-<?= $st[1] ?>"><?= $st[0] ?></span></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -107,8 +116,15 @@ new Chart(ctx, {
         labels: <?= json_encode(array_column($cat_stats, 'name')) ?>,
         datasets: [{
             data: <?= json_encode(array_map('intval', array_column($cat_stats, 'total'))) ?>,
-            backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+            backgroundColor: ['#0071e3', '#34c759', '#ff9f0a', '#ff375f', '#af52de', '#5ac8fa'],
+            borderWidth: 0
         }]
+    },
+    options: {
+        cutout: '68%',
+        plugins: {
+            legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { family: 'Inter' } } }
+        }
     }
 });
 </script>

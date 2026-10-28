@@ -1,31 +1,41 @@
-<footer class="bg-dark text-light mt-auto pt-5 pb-4">
+<footer class="footer-apple mt-auto pt-5 pb-4">
     <div class="container">
-        <div class="row g-4">
+        <div class="row g-4 pb-4">
             <div class="col-md-4">
-                <h5 class="fw-bold text-info mb-3"><i class="bi bi-controller me-2"></i>TECHGEAR STORE</h5>
-                <p class="text-secondary small">
-                    Hệ thống chuyên cung cấp phụ kiện điện tử, Gaming Gear, Bàn phím cơ, Tai nghe, Củ cáp sạc nhanh chính hãng. Bài tập lớn cuối kỳ môn Lập trình Web (PHP & MySQL).
+                <a href="index.php" class="brand-logo text-decoration-none mb-3">
+                    <span class="brand-mark"><i class="bi bi-lightning-charge-fill"></i></span>
+                    TechGear
+                </a>
+                <p class="mt-3 mb-0" style="max-width: 320px;">
+                    Phụ kiện điện tử chính hãng: bàn phím cơ, chuột gaming, tai nghe, củ cáp sạc nhanh và loa Bluetooth.
                 </p>
             </div>
-            <div class="col-md-4">
-                <h6 class="fw-bold text-uppercase mb-3">Chính sách & Hỗ trợ</h6>
-                <ul class="list-unstyled small text-secondary lh-lg">
-                    <li><i class="bi bi-check2 text-info me-2"></i>Bảo hành chính hãng 12 - 24 tháng</li>
-                    <li><i class="bi bi-check2 text-info me-2"></i>Đổi mới trong 30 ngày nếu lỗi NSX</li>
-                    <li><i class="bi bi-check2 text-info me-2"></i>Giao hàng siêu tốc toàn quốc (COD)</li>
+            <div class="col-6 col-md-2">
+                <h6>Mua sắm</h6>
+                <ul class="list-unstyled mb-0">
+                    <li><a href="products.php">Tất cả phụ kiện</a></li>
+                    <li><a href="products.php?sort=popular">Bán chạy</a></li>
+                    <li><a href="cart.php">Giỏ hàng</a></li>
                 </ul>
             </div>
-            <div class="col-md-4">
-                <h6 class="fw-bold text-uppercase mb-3">Tài khoản Demo</h6>
-                <div class="bg-secondary bg-opacity-25 p-3 rounded small">
-                    <div class="mb-1"><strong class="text-warning">Admin:</strong> <code>admin@gmail.com</code> / MK: <code>123456</code></div>
-                    <div><strong class="text-info">Khách hàng:</strong> <code>khach@gmail.com</code> / MK: <code>123456</code></div>
-                </div>
+            <div class="col-6 col-md-3">
+                <h6>Hỗ trợ</h6>
+                <ul class="list-unstyled mb-0">
+                    <li><i class="bi bi-telephone me-1"></i> Hotline: 1900 6868</li>
+                    <li><i class="bi bi-shield-check me-1"></i> Chính hãng 100%, bảo hành 1 đổi 1</li>
+                    <li><i class="bi bi-truck me-1"></i> Giao hàng toàn quốc (COD)</li>
+                </ul>
+            </div>
+            <div class="col-md-3">
+                <h6>Tài khoản demo</h6>
+                <div class="mb-1">Admin: <code>admin@gmail.com</code></div>
+                <div class="mb-1">Khách: <code>khach@gmail.com</code></div>
+                <div>Mật khẩu: <code>123456</code></div>
             </div>
         </div>
-        <hr class="border-secondary my-3">
-        <div class="text-center small text-secondary">
-            © <?= date('Y') ?> Nhóm 11 - Đề tài: Website Bán Phụ Kiện Điện Tử (PHP + MySQL)
+        <div class="border-top pt-3 d-flex flex-column flex-md-row justify-content-between gap-2" style="border-color: var(--tg-border) !important;">
+            <div>© <?= date('Y') ?> Nhóm 11 - Đề tài: Website Bán Phụ Kiện Điện Tử (PHP + MySQL)</div>
+            <div>Việt Nam</div>
         </div>
     </div>
 </footer>
