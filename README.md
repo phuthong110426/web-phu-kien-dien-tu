@@ -10,7 +10,7 @@
 
 ### Bước 1: Tải code về máy
 * Bấm nút màu xanh **`<> Code`** ở góc trên bên phải trang GitHub này -> Chọn **`Download ZIP`** (hoặc dùng `git clone`).
-* Giải nén thư mục vào đường dẫn `htdocs` của XAMPP:
+* Giải nén thư mục vào đường dẫn `htdocs` của XAMPP (phiên bản 8.3.36 / PHP 8.3.36):
   * Nếu cài XAMPP ở ổ C: `C:\xampp\htdocs\web-phu-kien-dien-tu`
   * Nếu cài XAMPP ở ổ D: `D:\xampp\htdocs\web-phu-kien-dien-tu`
 
@@ -49,7 +49,7 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
   * Thiết kế 8 bảng MySQL (`users`, `categories`, `brands`, `products`, `product_images`, `orders`, `order_details`, `reviews`).
   * Kết nối PDO, hàm phân quyền `is_logged_in()`, `is_admin()`, `require_admin()`.
   * Đăng ký, Đăng nhập, Đăng xuất, Cập nhật thông tin cá nhân.
-* **📌 VIỆC CẦN LÀM THÊM (TODO):**
+* ** VIỆC CẦN LÀM THÊM (TODO):**
   - [ ] **Code thêm chức năng "Đổi mật khẩu"** trong trang `profile.php` (nhập mật khẩu cũ, mật khẩu mới, xác nhận mật khẩu mới).
   - [ ] Xuất **Sơ đồ quan hệ thực thể (ERD)** của 8 bảng từ phpMyAdmin (vào `shop_phukien` -> tab `More` -> `Designer`) để đưa vào Slide thuyết trình.
   - [ ] Kiểm tra và ghép code của các thành viên trong nhóm.
