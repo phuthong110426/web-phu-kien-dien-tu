@@ -10,6 +10,7 @@
 
 ### Bước 1: Tải code về máy
 * Bấm nút màu xanh **`<> Code`** ở góc trên bên phải trang GitHub này -> Chọn **`Download ZIP`** (hoặc dùng `git clone`).
+* link tải XAMPP : https://www.apachefriends.org/download.html
 * Giải nén thư mục vào đường dẫn `htdocs` của XAMPP (phiên bản 8.3.36 / PHP 8.3.36):
   * Nếu cài XAMPP ở ổ C: `C:\xampp\htdocs\web-phu-kien-dien-tu`
   * Nếu cài XAMPP ở ổ D: `D:\xampp\htdocs\web-phu-kien-dien-tu`
