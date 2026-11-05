@@ -1,7 +1,7 @@
 <?php
 /**
  * TRANG CỬA HÀNG: TÌM KIẾM + LỌC (DANH MỤC, HÃNG, KHOẢNG GIÁ) + SẮP XẾP + PHÂN TRANG
- * Phụ trách: Thành viên 2 (phong cách Apple Store)
+ * Phụ trách: Thành viên 2 
  */
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/product_card.php';
