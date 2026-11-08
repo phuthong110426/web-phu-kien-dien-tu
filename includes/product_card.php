@@ -1,64 +1,59 @@
 <?php
 /**
- * Thẻ sản phẩm dùng chung cho toàn hệ thống
+ * THẺ SẢN PHẨM DÙNG CHUNG (kiểu Apple Store)
  * Phụ trách: Thành viên 2
+ * Cách dùng: render_product_card($p) hoặc render_product_card($p, 'col-sm-6 col-lg-4')
  */
-
-if (!function_exists('format_price')) {
-    function format_price($price) {
-        return number_format($price, 0, ',', '.') . ' đ';
-    }
-}
-
-if (!function_exists('product_final_price')) {
-    function product_final_price($p) {
-        return ($p['sale_price'] !== null && $p['sale_price'] > 0 && $p['sale_price'] < $p['price']) ? $p['sale_price'] : $p['price'];
-    }
-}
-
-if (!function_exists('product_spec_line')) {
-    function product_spec_line($p) {
-        return $p['specifications'] ?? '';
-    }
-}
-
 if (!function_exists('render_product_card')) {
-    function render_product_card($p, $wrapper_class = '') {
-        $final_price = product_final_price($p);
-        $has_sale = ($p['sale_price'] !== null && $p['sale_price'] > 0 && $p['sale_price'] < $p['price']);
-        $discount_percent = $has_sale ? round((($p['price'] - $p['sale_price']) / $p['price']) * 100) : 0;
-        
-        if ($wrapper_class) {
-            echo '<div class="' . htmlspecialchars($wrapper_class) . '">';
+
+    // Lấy giá bán thực tế (ưu tiên giá khuyến mãi nếu hợp lệ)
+    function product_final_price($p) {
+        return ($p['sale_price'] && $p['sale_price'] < $p['price']) ? $p['sale_price'] : $p['price'];
+    }
+
+    // Rút gọn thông số: "Kết nối: Bluetooth 5.2 | Pin: 30 giờ" -> "Bluetooth 5.2 · 30 giờ"
+    function product_spec_line($p, $limit = 2) {
+        $specs = array_filter(array_map('trim', explode('|', $p['specifications'] ?? '')));
+        $values = [];
+        foreach (array_slice($specs, 0, $limit) as $s) {
+            $pos = strpos($s, ':');
+            $values[] = $pos !== false ? trim(substr($s, $pos + 1)) : $s;
         }
+        return implode(' · ', $values);
+    }
+
+    function render_product_card($p, $wrapper_class = 'col-sm-6 col-lg-3') {
+        $final_price = product_final_price($p);
+        $discount = ($final_price < $p['price']) ? round((($p['price'] - $final_price) / $p['price']) * 100) : 0;
+        $eyebrow = $discount > 0 ? "Giảm $discount%" : (!empty($p['is_featured']) ? 'Nổi bật' : '');
+        $detail_url = 'product_detail.php?id=' . (int)$p['id'];
         ?>
-        <div class="card product-card h-100 border-0 shadow-sm position-relative">
-            <?php if ($has_sale): ?>
-                <span class="badge bg-danger position-absolute top-0 start-0 m-2 z-1">Giảm <?= $discount_percent ?>%</span>
-            <?php endif; ?>
-            <a href="product_detail.php?id=<?= $p['id'] ?>">
-                <img src="<?= htmlspecialchars($p['thumbnail']) ?>" class="card-img-top object-fit-cover" style="height: 200px;" alt="<?= htmlspecialchars($p['name']) ?>" loading="lazy">
-            </a>
-            <div class="card-body d-flex flex-column">
-                <span class="text-muted small mb-1"><?= htmlspecialchars($p['category_name'] ?? 'Phụ kiện') ?></span>
-                <h6 class="card-title text-truncate-2">
-                    <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-line-none text-dark fw-bold"><?= htmlspecialchars($p['name']) ?></a>
-                </h6>
-                <p class="card-text text-muted small text-truncate mb-2"><?= htmlspecialchars($p['specifications'] ?? '') ?></p>
-                <div class="mt-auto">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="text-danger fw-bold fs-6 me-2"><?= format_price($final_price) ?></span>
-                        <?php if ($has_sale): ?>
-                            <span class="text-muted text-decoration-line-through small"><?= format_price($p['price']) ?></span>
-                        <?php endif; ?>
+        <?php if ($wrapper_class): ?><div class="<?= htmlspecialchars($wrapper_class) ?>"><?php endif; ?>
+            <div class="product-card h-100 d-flex flex-column">
+                <a href="<?= $detail_url ?>" class="product-img-wrapper d-block" aria-label="<?= htmlspecialchars($p['name']) ?>">
+                    <img src="<?= htmlspecialchars($p['thumbnail']) ?>" alt="<?= htmlspecialchars($p['name']) ?>" loading="lazy">
+                </a>
+                <div class="pc-body d-flex flex-column flex-grow-1">
+                    <?php if ($eyebrow): ?>
+                        <div class="pc-eyebrow"><?= $eyebrow ?></div>
+                    <?php endif; ?>
+                    <div class="pc-brand"><?= htmlspecialchars($p['brand_name'] ?? 'Chính hãng') ?></div>
+                    <h3 class="pc-name"><a href="<?= $detail_url ?>"><?= htmlspecialchars($p['name']) ?></a></h3>
+                    <p class="pc-spec"><?= htmlspecialchars(product_spec_line($p)) ?></p>
+                    <div class="pc-footer mt-auto">
+                        <div>
+                            <div class="pc-price"><?= format_price($final_price) ?></div>
+                            <?php if ($discount > 0): ?>
+                                <div class="pc-old"><?= format_price($p['price']) ?></div>
+                            <?php endif; ?>
+                        </div>
+                        <a href="cart.php?action=add&id=<?= (int)$p['id'] ?>" class="pc-add" title="Thêm vào giỏ" aria-label="Thêm vào giỏ">
+                            <i class="bi bi-plus-lg"></i>
+                        </a>
                     </div>
-                    <a href="cart.php?action=add&id=<?= $p['id'] ?>" class="btn btn-outline-primary btn-sm w-100">Thêm vào giỏ</a>
                 </div>
             </div>
-        </div>
+        <?php if ($wrapper_class): ?></div><?php endif; ?>
         <?php
-        if ($wrapper_class) {
-            echo '</div>';
-        }
     }
 }
