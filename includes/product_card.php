@@ -3,6 +3,7 @@
  * THẺ SẢN PHẨM DÙNG CHUNG (kiểu Apple Store)
  * Phụ trách: Thành viên 2
  * Cách dùng: render_product_card($p) hoặc render_product_card($p, 'col-sm-6 col-lg-4')
+ *            Truyền null nếu không cần bọc cột (ví dụ trong kệ cuộn ngang).
  */
 if (!function_exists('render_product_card')) {
 

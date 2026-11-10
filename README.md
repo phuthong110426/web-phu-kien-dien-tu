@@ -56,11 +56,13 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 
 ---
 
-###  Thành viên 2: Giao diện người dùng (UI/UX Responsive) + Trang chủ + Tìm kiếm, Bộ lọc & Phân trang
+###  Thành viên 2: Giao diện người dùng (UI/UX Responsive) + Trang chủ + Tìm kiếm, Bộ lọc & Phân trang + Trợ lý ảo AI Chatbot
 * **File phụ trách chính:**
   * `includes/header.php`, `includes/footer.php`
   * `index.php` (Trang chủ)
   * `products.php` (Trang cửa hàng + Tìm kiếm + Lọc + Phân trang)
+  * `api/chat_ai.php` (Kết nối Google Gemini AI Chatbot)
+  * `assets/css/style.css`, `assets/js/main.js` (Hiệu ứng UI & Chatbot AI)
 * **Chức năng đã có trong khung:**
   * Thanh điều hướng (Navbar) responsive, tìm kiếm theo từ khóa, hiển thị danh mục.
   * Trang chủ hiển thị phụ kiện nổi bật (Flash Sale) và phụ kiện mới.
@@ -69,6 +71,7 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
   - [x] **Thêm bộ lọc theo Khoảng giá** trong trang `products.php` (*Dưới 1 triệu*, *Từ 1 - 3 triệu*, *Trên 3 triệu*). ✅
   - [x] **Nâng cấp Banner trang chủ (`index.php`):** Banner trượt 3 slide (Bootstrap Carousel) có nút tạm dừng. ✅
   - [x] **Tối ưu giao diện theo phong cách apple.com:** thêm `assets/css/style.css`, `assets/js/main.js` (hiệu ứng hiện dần khi cuộn, kệ sản phẩm cuộn ngang, thanh lọc dính) và thẻ sản phẩm dùng chung `includes/product_card.php`. ✅
+  - [x] **Tích hợp Trợ lý ảo AI Chatbot (Google Gemini API):** Tư vấn mua phụ kiện điện tử trực tiếp trên web theo dữ liệu sản phẩm trong CSDL, giao diện bong bóng chat kính mờ chuẩn Apple. ✅
   - [ ] Chụp ảnh giao diện trên cả màn hình máy tính và điện thoại (Responsive) gửi cho Thành viên 6 làm Slide.
 
 ---

@@ -11,21 +11,23 @@ $current_file = basename($_SERVER['PHP_SELF']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= isset($page_title) ? htmlspecialchars($page_title) . ' - TechGear' : 'TechGear - Phụ Kiện Điện Tử Chính Hãng' ?></title>
-    <!-- Font Inter (hỗ trợ tiếng Việt) -->
+    <!-- Font Be Vietnam Pro (thiết kế chuẩn cho tiếng Việt, không bao giờ lỗi dấu) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <!-- CSS giao diện riêng của nhóm -->
     <link href="assets/css/style.css" rel="stylesheet">
+    <!-- Bật hiệu ứng xuất hiện khi cuộn (chỉ khi trình duyệt có JavaScript) -->
+    <script>document.documentElement.classList.add('js');</script>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
 <!-- Thanh điều hướng chính (kính mờ kiểu Apple) -->
-<nav class="navbar navbar-expand-lg navbar-light navbar-apple sticky-top py-2">
+<nav id="siteNav" class="navbar navbar-expand-lg navbar-light navbar-apple sticky-top py-2">
     <div class="container">
         <a class="navbar-brand brand-logo" href="index.php">
             <span class="brand-mark"><i class="bi bi-lightning-charge-fill"></i></span>
