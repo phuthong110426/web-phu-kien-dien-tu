@@ -119,9 +119,9 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
   * Cập nhật trạng thái đơn hàng (`pending` -> `confirmed` -> `shipping` -> `completed` / `cancelled`).
   * Khóa/Mở khóa người dùng và đổi quyền `user` <-> `admin`.
 * ** VIỆC CẦN LÀM THÊM (TODO):**
-  - [ ] **Làm chức năng "Xem chi tiết đơn hàng" trong `admin/orders.php`:** Khi Admin bấm vào 1 đơn hàng sẽ xem được đơn đó mua những phụ kiện gì, số lượng bao nhiêu.
-  - [ ] **Cập nhật tự động trừ tồn kho (`stock`)** khi Admin chuyển trạng thái đơn hàng sang `completed` (Hoàn thành).
-  - [ ] Thêm 1 biểu đồ thống kê số lượng đơn hàng theo từng trạng thái trong `admin/index.php`.
+  - [x] **Làm chức năng "Xem chi tiết đơn hàng" trong `admin/orders.php`:** Khi Admin bấm vào 1 đơn hàng sẽ xem được đơn đó mua những phụ kiện gì, số lượng bao nhiêu. (Đã tạo `admin/order_detail.php`) ✅
+  - [x] **Cập nhật tự động trừ tồn kho (`stock`)** khi Admin chuyển trạng thái đơn hàng sang `completed` (Hoàn thành) trong `admin/orders.php` & `admin/order_detail.php`. ✅
+  - [x] **Thêm 1 biểu đồ thống kê số lượng đơn hàng theo từng trạng thái trong `admin/index.php` (Chart.js)**. ✅
 
 ---
 
