@@ -1,12 +1,5 @@
 <?php
-/**
- * CRUD THƯƠNG HIỆU (BRANDS)
- * Phụ trách: Thành viên 4
- *
- * Bảng `brands`: id, name, origin.
- * Xóa hãng: các sản phẩm thuộc hãng đó tự chuyển brand_id = NULL (FK ON DELETE SET NULL),
- * nên không bị mất sản phẩm.
- */
+
 require_once __DIR__ . '/../config/db.php';
 require_admin();
 
