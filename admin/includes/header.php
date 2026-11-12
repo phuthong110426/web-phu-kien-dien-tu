@@ -40,7 +40,8 @@ $admin_menu = [
             <?php foreach ($admin_menu as $item): ?>
                 <?php
                 $is_active = $current_page === $item[0]
-                    || ($item[0] === 'products.php' && $current_page === 'product_form.php');
+                    || ($item[0] === 'products.php' && $current_page === 'product_form.php')
+                    || ($item[0] === 'orders.php' && $current_page === 'order_detail.php');
                 ?>
                 <li>
                     <a href="<?= $item[0] ?>" class="nav-link <?= $is_active ? 'active' : '' ?>">

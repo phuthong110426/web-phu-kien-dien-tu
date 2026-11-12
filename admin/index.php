@@ -19,6 +19,35 @@ $cat_stats = $pdo->query("
     GROUP BY c.id, c.name
 ")->fetchAll();
 
+// Thống kê số lượng đơn hàng theo từng trạng thái cho Biểu đồ
+$order_status_stats = $pdo->query("SELECT status, COUNT(*) as total FROM orders GROUP BY status")->fetchAll();
+
+$status_vn_map = [
+    'pending'   => 'Chờ xác nhận',
+    'confirmed' => 'Đã xác nhận',
+    'shipping'  => 'Đang giao',
+    'completed' => 'Hoàn thành',
+    'cancelled' => 'Đã hủy',
+];
+$status_color_map = [
+    'pending'   => '#ff9f0a',
+    'confirmed' => '#00b4d8',
+    'shipping'  => '#0071e3',
+    'completed' => '#34c759',
+    'cancelled' => '#ff375f',
+];
+
+$order_status_labels = [];
+$order_status_data = [];
+$order_status_colors = [];
+
+foreach ($order_status_stats as $row) {
+    $st = $row['status'];
+    $order_status_labels[] = $status_vn_map[$st] ?? $st;
+    $order_status_data[] = (int)$row['total'];
+    $order_status_colors[] = $status_color_map[$st] ?? '#8e8e93';
+}
+
 $recent_orders = $pdo->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->fetchAll();
 ?>
 
@@ -59,17 +88,28 @@ $recent_orders = $pdo->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->f
     </div>
 </div>
 
-<div class="row g-4">
-    <div class="col-lg-5">
+<!-- 2 Biểu đồ thống kê -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-            <h6 class="fw-bold mb-3">Thống Kê Phụ Kiện Theo Danh Mục</h6>
+            <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart text-primary me-2"></i>Thống Kê Phụ Kiện Theo Danh Mục</h6>
             <canvas id="categoryChart" height="230"></canvas>
         </div>
     </div>
-    <div class="col-lg-7">
+    <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+            <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart-line text-primary me-2"></i>Thống Kê Đơn Hàng Theo Trạng Thái</h6>
+            <canvas id="orderStatusChart" height="230"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Đơn hàng mới nhất -->
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold m-0">Đơn Hàng Mới Nhất</h6>
+                <h6 class="fw-bold m-0"><i class="bi bi-receipt text-primary me-2"></i>Đơn Hàng Mới Nhất</h6>
                 <a href="orders.php" class="btn btn-sm btn-outline-primary">Xem tất cả</a>
             </div>
             <div class="table-responsive">
@@ -80,12 +120,15 @@ $recent_orders = $pdo->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->f
                             <th>Khách hàng</th>
                             <th>Tổng tiền</th>
                             <th>Trạng thái</th>
+                            <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($recent_orders as $o): ?>
                             <tr>
-                                <td class="fw-bold">#<?= $o['id'] ?></td>
+                                <td class="fw-bold">
+                                    <a href="order_detail.php?id=<?= $o['id'] ?>" class="text-decoration-none">#<?= $o['id'] ?></a>
+                                </td>
                                 <td><?= htmlspecialchars($o['receiver_name']) ?></td>
                                 <td class="fw-bold text-danger"><?= format_price($o['total_amount']) ?></td>
                                 <?php
@@ -98,6 +141,11 @@ $recent_orders = $pdo->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->f
                                 ][$o['status']] ?? [$o['status'], 'secondary'];
                                 ?>
                                 <td><span class="badge bg-<?= $st[1] ?>"><?= $st[0] ?></span></td>
+                                <td>
+                                    <a href="order_detail.php?id=<?= $o['id'] ?>" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                        Chi tiết
+                                    </a>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -109,8 +157,9 @@ $recent_orders = $pdo->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->f
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const ctx = document.getElementById('categoryChart');
-new Chart(ctx, {
+// 1. Biểu đồ Danh mục phụ kiện (Doughnut Chart)
+const ctxCat = document.getElementById('categoryChart');
+new Chart(ctxCat, {
     type: 'doughnut',
     data: {
         labels: <?= json_encode(array_column($cat_stats, 'name')) ?>,
@@ -124,6 +173,48 @@ new Chart(ctx, {
         cutout: '68%',
         plugins: {
             legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { family: 'Inter' } } }
+        }
+    }
+});
+
+// 2. Biểu đồ Đơn hàng theo Trạng thái (Bar Chart)
+const ctxStatus = document.getElementById('orderStatusChart');
+new Chart(ctxStatus, {
+    type: 'bar',
+    data: {
+        labels: <?= json_encode($order_status_labels) ?>,
+        datasets: [{
+            label: 'Số lượng đơn',
+            data: <?= json_encode($order_status_data) ?>,
+            backgroundColor: <?= json_encode($order_status_colors) ?>,
+            borderRadius: 8,
+            borderSkipped: false
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0,
+                    font: { family: 'Inter' }
+                },
+                grid: {
+                    color: '#f0f0f2'
+                }
+            },
+            x: {
+                ticks: {
+                    font: { family: 'Inter' }
+                },
+                grid: {
+                    display: false
+                }
+            }
         }
     }
 });
