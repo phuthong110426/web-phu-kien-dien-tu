@@ -1,12 +1,11 @@
 <?php
 /**
- * XEM CHI TIẾT ĐƠN ĐẶT HÀNG
+ * XEM CHI TIẾT ĐƠN ĐẶT HÀNG & IN HÓA ĐƠN
  * Phụ trách: Thành viên 5
  */
 require_once __DIR__ . '/../config/db.php';
 require_admin();
 
-// 1. Lấy ID đơn hàng từ URL
 $order_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($order_id <= 0) {
     $_SESSION['flash_error'] = 'Mã đơn hàng không hợp lệ!';
@@ -18,45 +17,45 @@ if ($order_id <= 0) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     $new_status = $_POST['status'] ?? '';
     $valid_statuses = ['pending', 'confirmed', 'shipping', 'completed', 'cancelled'];
-    if (in_array($new_status, $valid_statuses)) {
-        // Lấy trạng thái hiện tại của đơn hàng để kiểm tra
+    if (in_array($new_status, $valid_statuses, true)) {
         $stmt_cur = $pdo->prepare("SELECT status FROM orders WHERE id = ?");
         $stmt_cur->execute([$order_id]);
         $old_status = $stmt_cur->fetchColumn();
 
         if ($old_status !== false) {
-            // Logic tự động trừ kho / hoàn kho
-            if ($new_status === 'completed' && $old_status !== 'completed') {
-                $stmt_items = $pdo->prepare("SELECT product_id, quantity FROM order_details WHERE order_id = ?");
-                $stmt_items->execute([$order_id]);
-                $items = $stmt_items->fetchAll();
-
-                $stmt_stock = $pdo->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
-                foreach ($items as $item) {
-                    $stmt_stock->execute([$item['quantity'], $item['product_id']]);
+            $pdo->beginTransaction();
+            try {
+                if ($new_status === 'completed' && $old_status !== 'completed') {
+                    $stmt_items = $pdo->prepare("SELECT product_id, quantity FROM order_details WHERE order_id = ?");
+                    $stmt_items->execute([$order_id]);
+                    $stmt_stock = $pdo->prepare("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE id = ?");
+                    foreach ($stmt_items->fetchAll() as $item) {
+                        $stmt_stock->execute([$item['quantity'], $item['product_id']]);
+                    }
+                } elseif ($old_status === 'completed' && $new_status !== 'completed') {
+                    $stmt_items = $pdo->prepare("SELECT product_id, quantity FROM order_details WHERE order_id = ?");
+                    $stmt_items->execute([$order_id]);
+                    $stmt_stock = $pdo->prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
+                    foreach ($stmt_items->fetchAll() as $item) {
+                        $stmt_stock->execute([$item['quantity'], $item['product_id']]);
+                    }
                 }
-            } elseif ($old_status === 'completed' && $new_status !== 'completed') {
-                // Hoàn lại tồn kho khi đổi từ completed sang trạng thái khác (ví dụ: cancelled)
-                $stmt_items = $pdo->prepare("SELECT product_id, quantity FROM order_details WHERE order_id = ?");
-                $stmt_items->execute([$order_id]);
-                $items = $stmt_items->fetchAll();
 
-                $stmt_stock = $pdo->prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
-                foreach ($items as $item) {
-                    $stmt_stock->execute([$item['quantity'], $item['product_id']]);
+                $stmt_update = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ?");
+                $stmt_update->execute([$new_status, $order_id]);
+                $pdo->commit();
+
+                $msg = "Đã cập nhật trạng thái đơn hàng #$order_id thành công!";
+                if ($new_status === 'completed' && $old_status !== 'completed') {
+                    $msg .= " Đã tự động trừ số lượng tồn kho của các sản phẩm trong đơn.";
+                } elseif ($old_status === 'completed' && $new_status !== 'completed') {
+                    $msg .= " Đã tự động hoàn trả số lượng tồn kho của các sản phẩm trong đơn.";
                 }
+                $_SESSION['flash_success'] = $msg;
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                $_SESSION['flash_error'] = "Lỗi khi cập nhật trạng thái đơn hàng #$order_id!";
             }
-
-            $stmt_update = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ?");
-            $stmt_update->execute([$new_status, $order_id]);
-
-            $msg = "Đã cập nhật trạng thái đơn hàng #$order_id thành công!";
-            if ($new_status === 'completed' && $old_status !== 'completed') {
-                $msg .= " Đã tự động trừ số lượng tồn kho của các sản phẩm trong đơn.";
-            } elseif ($old_status === 'completed' && $new_status !== 'completed') {
-                $msg .= " Đã tự động hoàn trả (cộng lại) số lượng tồn kho của các sản phẩm trong đơn.";
-            }
-            $_SESSION['flash_success'] = $msg;
         }
 
         header("Location: order_detail.php?id=$order_id");
@@ -64,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     }
 }
 
-// 2. Truy vấn thông tin đơn hàng từ bảng orders (kèm thông tin user nếu có)
+// Truy vấn thông tin đơn hàng từ bảng orders (kèm thông tin user nếu có)
 $stmt_order = $pdo->prepare("
     SELECT o.*, u.fullname AS user_fullname, u.email AS user_email, u.phone AS user_phone
     FROM orders o
@@ -80,7 +79,7 @@ if (!$order) {
     exit;
 }
 
-// 3. Truy vấn danh sách sản phẩm trong đơn hàng: JOIN order_details với products
+// Truy vấn danh sách sản phẩm trong đơn hàng: JOIN order_details với products
 $stmt_details = $pdo->prepare("
     SELECT od.*, p.name AS product_name, p.thumbnail
     FROM order_details od
@@ -91,19 +90,26 @@ $stmt_details = $pdo->prepare("
 $stmt_details->execute([$order_id]);
 $order_details = $stmt_details->fetchAll();
 
-// Cấu hình nhãn và màu sắc trạng thái
 $status_map = [
-    'pending'   => ['label' => 'Chờ xác nhận', 'class' => 'warning', 'icon' => 'bi-hourglass-split'],
-    'confirmed' => ['label' => 'Đã xác nhận',  'class' => 'info',    'icon' => 'bi-check2-circle'],
+    'pending'   => ['label' => 'Chờ xác nhận',  'class' => 'warning', 'icon' => 'bi-hourglass-split'],
+    'confirmed' => ['label' => 'Đã xác nhận',   'class' => 'info',    'icon' => 'bi-check2-circle'],
     'shipping'  => ['label' => 'Đang giao hàng','class' => 'primary', 'icon' => 'bi-truck'],
     'completed' => ['label' => 'Hoàn thành',    'class' => 'success', 'icon' => 'bi-check-circle-fill'],
-    'cancelled' => ['label' => 'Đã hủy',       'class' => 'danger',  'icon' => 'bi-x-circle-fill'],
+    'cancelled' => ['label' => 'Đã hủy',        'class' => 'danger',  'icon' => 'bi-x-circle-fill'],
 ];
 $badge = $status_map[$order['status']] ?? ['label' => $order['status'], 'class' => 'secondary', 'icon' => 'bi-info-circle'];
 
 $page_title = 'Chi tiết Đơn hàng #' . $order['id'];
 require_once __DIR__ . '/includes/header.php';
 ?>
+
+<style>
+@media print {
+    .admin-sidebar, .admin-topbar, .no-print { display: none !important; }
+    body { background: #fff !important; }
+    .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+}
+</style>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
@@ -119,7 +125,7 @@ require_once __DIR__ . '/includes/header.php';
             Đặt ngày: <?= date('d/m/Y H:i:s', strtotime($order['created_at'])) ?>
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 no-print">
         <a href="orders.php" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i> Quay lại danh sách
         </a>
@@ -196,7 +202,7 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="fw-bold text-danger fs-4"><?= format_price($order['total_amount']) ?></div>
                 </div>
 
-                <div class="border-top pt-3 mt-4">
+                <div class="border-top pt-3 mt-4 no-print">
                     <label class="form-label fw-bold small text-muted text-uppercase mb-2">Cập nhật trạng thái đơn</label>
                     <form method="POST" class="d-flex gap-2">
                         <select name="status" class="form-select">
@@ -210,7 +216,7 @@ require_once __DIR__ . '/includes/header.php';
                             <i class="bi bi-check2 me-1"></i> Lưu
                         </button>
                     </form>
-                    <div class="form-text small mt-2">Trạng thái sẽ được cập nhật ngay lập tức vào cơ sở dữ liệu.</div>
+                    <div class="form-text small mt-2">Khi chuyển sang "Đã hoàn thành", hệ thống tự động trừ tồn kho.</div>
                 </div>
             </div>
         </div>
@@ -237,37 +243,26 @@ require_once __DIR__ . '/includes/header.php';
                 </tr>
             </thead>
             <tbody>
-                <?php 
-                $calculated_total = 0;
-                $index = 0;
-                ?>
                 <?php if (empty($order_details)): ?>
                     <tr>
                         <td colspan="6" class="text-center py-4 text-muted">Không tìm thấy chi tiết sản phẩm cho đơn hàng này.</td>
                     </tr>
                 <?php else: ?>
-                    <?php foreach ($order_details as $item): 
-                        $index++;
+                    <?php foreach ($order_details as $idx => $item):
                         $subtotal = $item['price'] * $item['quantity'];
-                        $calculated_total += $subtotal;
-                        
-                        // Xử lý đường dẫn ảnh đại diện
                         $thumb = $item['thumbnail'] ?? '';
-                        $img_src = '';
-                        if (!empty($thumb)) {
-                            $img_src = (strpos($thumb, 'http') === 0) ? $thumb : '../' . $thumb;
-                        }
+                        $img_src = !empty($thumb) ? ((strpos($thumb, 'http') === 0) ? $thumb : '../' . $thumb) : '';
                     ?>
                         <tr>
-                            <td class="text-center text-muted fw-semibold"><?= $index ?></td>
+                            <td class="text-center text-muted fw-semibold"><?= $idx + 1 ?></td>
                             <td>
                                 <?php if (!empty($img_src)): ?>
-                                    <img src="<?= htmlspecialchars($img_src) ?>" 
-                                         alt="<?= htmlspecialchars($item['product_name'] ?? 'Sản phẩm') ?>" 
-                                         class="rounded-3 border" 
+                                    <img src="<?= htmlspecialchars($img_src) ?>"
+                                         alt="<?= htmlspecialchars($item['product_name'] ?? 'Sản phẩm') ?>"
+                                         class="rounded-3 border"
                                          style="width: 56px; height: 56px; object-fit: cover;">
                                 <?php else: ?>
-                                    <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted" 
+                                    <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted"
                                          style="width: 56px; height: 56px;">
                                         <i class="bi bi-image" style="font-size: 1.5rem;"></i>
                                     </div>
@@ -275,12 +270,10 @@ require_once __DIR__ . '/includes/header.php';
                             </td>
                             <td>
                                 <?php if (!empty($item['product_name'])): ?>
-                                    <div class="fw-bold text-dark mb-1">
-                                        <?= htmlspecialchars($item['product_name']) ?>
-                                    </div>
-                                    <a href="../product_detail.php?id=<?= $item['product_id'] ?>" 
-                                       target="_blank" 
-                                       class="small text-decoration-none text-muted">
+                                    <div class="fw-bold text-dark mb-1"><?= htmlspecialchars($item['product_name']) ?></div>
+                                    <a href="../product_detail.php?id=<?= $item['product_id'] ?>"
+                                       target="_blank"
+                                       class="small text-decoration-none text-muted no-print">
                                         <i class="bi bi-box-arrow-up-right me-1"></i>Xem trang sản phẩm
                                     </a>
                                 <?php else: ?>
@@ -293,12 +286,8 @@ require_once __DIR__ . '/includes/header.php';
                                     x<?= $item['quantity'] ?>
                                 </span>
                             </td>
-                            <td class="text-end fw-semibold">
-                                <?= format_price($item['price']) ?>
-                            </td>
-                            <td class="text-end fw-bold text-danger">
-                                <?= format_price($subtotal) ?>
-                            </td>
+                            <td class="text-end fw-semibold"><?= format_price($item['price']) ?></td>
+                            <td class="text-end fw-bold text-danger"><?= format_price($subtotal) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -306,9 +295,7 @@ require_once __DIR__ . '/includes/header.php';
             <tfoot class="table-light">
                 <tr>
                     <td colspan="5" class="text-end fw-bold py-3">Tổng cộng thanh toán:</td>
-                    <td class="text-end fw-bold text-danger fs-5 py-3">
-                        <?= format_price($order['total_amount']) ?>
-                    </td>
+                    <td class="text-end fw-bold text-danger fs-5 py-3"><?= format_price($order['total_amount']) ?></td>
                 </tr>
             </tfoot>
         </table>

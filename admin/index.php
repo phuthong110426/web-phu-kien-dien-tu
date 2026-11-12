@@ -11,7 +11,7 @@ $total_orders = $pdo->query("SELECT COUNT(*) FROM orders")->fetchColumn();
 $total_products = $pdo->query("SELECT COUNT(*) FROM products")->fetchColumn();
 $total_users = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
 
-// Thống kê số lượng sản phẩm theo danh mục cho Biểu đồ
+// Thống kê số lượng sản phẩm theo danh mục cho Biểu đồ tròn
 $cat_stats = $pdo->query("
     SELECT c.name, COUNT(p.id) AS total
     FROM categories c
@@ -19,9 +19,7 @@ $cat_stats = $pdo->query("
     GROUP BY c.id, c.name
 ")->fetchAll();
 
-// Thống kê số lượng đơn hàng theo từng trạng thái cho Biểu đồ
-$order_status_stats = $pdo->query("SELECT status, COUNT(*) as total FROM orders GROUP BY status")->fetchAll();
-
+// Thống kê số lượng đơn hàng theo từng trạng thái (luôn cố định đủ 5 cột theo đúng trình tự)
 $status_vn_map = [
     'pending'   => 'Chờ xác nhận',
     'confirmed' => 'Đã xác nhận',
@@ -36,24 +34,23 @@ $status_color_map = [
     'completed' => '#34c759',
     'cancelled' => '#ff375f',
 ];
-
-$order_status_labels = [];
-$order_status_data = [];
-$order_status_colors = [];
-
-foreach ($order_status_stats as $row) {
-    $st = $row['status'];
-    $order_status_labels[] = $status_vn_map[$st] ?? $st;
-    $order_status_data[] = (int)$row['total'];
-    $order_status_colors[] = $status_color_map[$st] ?? '#8e8e93';
+$status_counts = array_fill_keys(array_keys($status_vn_map), 0);
+$order_status_rows = $pdo->query("SELECT status, COUNT(*) AS total FROM orders GROUP BY status")->fetchAll();
+foreach ($order_status_rows as $row) {
+    if (isset($status_counts[$row['status']])) {
+        $status_counts[$row['status']] = (int)$row['total'];
+    }
 }
+$order_status_labels = array_values($status_vn_map);
+$order_status_data   = array_values($status_counts);
+$order_status_colors = array_values($status_color_map);
 
 $recent_orders = $pdo->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->fetchAll();
 ?>
 
 <div class="mb-4">
-    <h2 class="section-title">Xin chào, <?= htmlspecialchars($_SESSION['user']['fullname']) ?>.</h2>
-    <p class="section-sub">Đây là tình hình cửa hàng TechGear hôm nay.</p>
+    <h2 class="section-title">Xin chào, <?= htmlspecialchars($_SESSION['user']['fullname']) ?></h2>
+    <p class="section-sub">Tổng quan tình hình cửa hàng TechGear hôm nay</p>
 </div>
 
 <!-- 4 Thẻ thống kê -->
@@ -133,16 +130,16 @@ $recent_orders = $pdo->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->f
                                 <td class="fw-bold text-danger"><?= format_price($o['total_amount']) ?></td>
                                 <?php
                                 $st = [
-                                    'pending' => ['Chờ xác nhận', 'warning'],
+                                    'pending'   => ['Chờ xác nhận', 'warning'],
                                     'confirmed' => ['Đã xác nhận', 'info'],
-                                    'shipping' => ['Đang giao', 'primary'],
+                                    'shipping'  => ['Đang giao', 'primary'],
                                     'completed' => ['Hoàn thành', 'success'],
                                     'cancelled' => ['Đã hủy', 'secondary'],
                                 ][$o['status']] ?? [$o['status'], 'secondary'];
                                 ?>
                                 <td><span class="badge bg-<?= $st[1] ?>"><?= $st[0] ?></span></td>
                                 <td>
-                                    <a href="order_detail.php?id=<?= $o['id'] ?>" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                    <a href="order_detail.php?id=<?= $o['id'] ?>" class="btn btn-sm btn-outline-primary py-1 px-3">
                                         Chi tiết
                                     </a>
                                 </td>
@@ -172,7 +169,7 @@ new Chart(ctxCat, {
     options: {
         cutout: '68%',
         plugins: {
-            legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { family: 'Inter' } } }
+            legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { family: 'Be Vietnam Pro' } } }
         }
     }
 });
@@ -201,19 +198,13 @@ new Chart(ctxStatus, {
                 beginAtZero: true,
                 ticks: {
                     precision: 0,
-                    font: { family: 'Inter' }
+                    font: { family: 'Be Vietnam Pro' }
                 },
-                grid: {
-                    color: '#f0f0f2'
-                }
+                grid: { color: '#f0f0f2' }
             },
             x: {
-                ticks: {
-                    font: { family: 'Inter' }
-                },
-                grid: {
-                    display: false
-                }
+                ticks: { font: { family: 'Be Vietnam Pro' } },
+                grid: { display: false }
             }
         }
     }

@@ -1,61 +1,58 @@
 <?php
 /**
- * QUẢN LÝ ĐƠN HÀNG & CẬP NHẬT TRẠNG THÁI
+ * QUẢN LÝ ĐƠN HÀNG & CẬP NHẬT TRẠNG THÁI (TỰ ĐỘNG TRỪ / HOÀN TỒN KHO)
  * Phụ trách: Thành viên 5
  */
 require_once __DIR__ . '/../config/db.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
-    $order_id = (int)$_POST['order_id'];
-    $new_status = $_POST['status'];
+    $order_id = (int)($_POST['order_id'] ?? 0);
+    $new_status = $_POST['status'] ?? '';
+    $valid_statuses = ['pending', 'confirmed', 'shipping', 'completed', 'cancelled'];
 
-    // 1. Lấy trạng thái hiện tại (cũ) của đơn hàng từ CSDL
-    $stmt_cur = $pdo->prepare("SELECT status FROM orders WHERE id = ?");
-    $stmt_cur->execute([$order_id]);
-    $old_status = $stmt_cur->fetchColumn();
+    if ($order_id > 0 && in_array($new_status, $valid_statuses, true)) {
+        $stmt_cur = $pdo->prepare("SELECT status FROM orders WHERE id = ?");
+        $stmt_cur->execute([$order_id]);
+        $old_status = $stmt_cur->fetchColumn();
 
-    if ($old_status !== false) {
-        // 2. Logic trừ kho / hoàn kho tự động:
-        if ($new_status === 'completed' && $old_status !== 'completed') {
-            // Khi đơn chuyển sang completed: trừ tồn kho
-            $stmt_items = $pdo->prepare("SELECT product_id, quantity FROM order_details WHERE order_id = ?");
-            $stmt_items->execute([$order_id]);
-            $items = $stmt_items->fetchAll();
+        if ($old_status !== false) {
+            $pdo->beginTransaction();
+            try {
+                // Tự động trừ kho khi chuyển sang completed, hoặc hoàn kho khi đổi từ completed sang trạng thái khác
+                if ($new_status === 'completed' && $old_status !== 'completed') {
+                    $stmt_items = $pdo->prepare("SELECT product_id, quantity FROM order_details WHERE order_id = ?");
+                    $stmt_items->execute([$order_id]);
+                    $stmt_stock = $pdo->prepare("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE id = ?");
+                    foreach ($stmt_items->fetchAll() as $item) {
+                        $stmt_stock->execute([$item['quantity'], $item['product_id']]);
+                    }
+                } elseif ($old_status === 'completed' && $new_status !== 'completed') {
+                    $stmt_items = $pdo->prepare("SELECT product_id, quantity FROM order_details WHERE order_id = ?");
+                    $stmt_items->execute([$order_id]);
+                    $stmt_stock = $pdo->prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
+                    foreach ($stmt_items->fetchAll() as $item) {
+                        $stmt_stock->execute([$item['quantity'], $item['product_id']]);
+                    }
+                }
 
-            $stmt_stock = $pdo->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
-            foreach ($items as $item) {
-                $stmt_stock->execute([$item['quantity'], $item['product_id']]);
-            }
-        } elseif ($old_status === 'completed' && $new_status !== 'completed') {
-            // Khi đơn từ completed đổi sang trạng thái khác (ví dụ: cancelled): hoàn lại tồn kho
-            $stmt_items = $pdo->prepare("SELECT product_id, quantity FROM order_details WHERE order_id = ?");
-            $stmt_items->execute([$order_id]);
-            $items = $stmt_items->fetchAll();
+                $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ?");
+                $stmt->execute([$new_status, $order_id]);
+                $pdo->commit();
 
-            $stmt_stock = $pdo->prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
-            foreach ($items as $item) {
-                $stmt_stock->execute([$item['quantity'], $item['product_id']]);
+                $msg = "Đã cập nhật trạng thái đơn hàng #$order_id!";
+                if ($new_status === 'completed' && $old_status !== 'completed') {
+                    $msg .= " Đã tự động trừ số lượng tồn kho của các sản phẩm trong đơn.";
+                } elseif ($old_status === 'completed' && $new_status !== 'completed') {
+                    $msg .= " Đã tự động hoàn trả số lượng tồn kho của các sản phẩm trong đơn.";
+                }
+                $_SESSION['flash_success'] = $msg;
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                $_SESSION['flash_error'] = "Lỗi khi cập nhật đơn hàng #$order_id!";
             }
         }
-
-        // 3. Cập nhật trạng thái mới cho đơn hàng
-        $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ?");
-        $stmt->execute([$new_status, $order_id]);
-
-        $msg = "Đã cập nhật trạng thái đơn hàng #$order_id!";
-        if ($new_status === 'completed' && $old_status !== 'completed') {
-            $msg .= " Đã tự động trừ số lượng tồn kho của các sản phẩm trong đơn.";
-        } elseif ($old_status === 'completed' && $new_status !== 'completed') {
-            $msg .= " Đã tự động hoàn trả (cộng lại) số lượng tồn kho của các sản phẩm trong đơn.";
-        }
-        $_SESSION['flash_success'] = $msg;
     }
-
-    // In thử var_dump để kiểm tra xem biến trạng thái cũ có lấy đúng là completed không
-    var_dump($old_status, $new_status);
-    // Lưu ý: Nếu muốn màn hình dừng lại để quan sát trực tiếp kết quả var_dump, bạn có thể bỏ chú thích dòng exit; dưới đây
-    // exit;
 
     header('Location: orders.php');
     exit;
