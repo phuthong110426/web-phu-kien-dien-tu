@@ -7,6 +7,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $admin_menu = [
     ['index.php',      'bi-grid-1x2',        'Tổng quan',          'TV5'],
     ['categories.php', 'bi-tags',            'Danh mục',           'TV4'],
+    ['brands.php',     'bi-award',           'Thương hiệu',        'TV4'],
     ['products.php',   'bi-box-seam',        'Sản phẩm',           'TV4'],
     ['orders.php',     'bi-receipt',         'Đơn hàng',           'TV5'],
     ['users.php',      'bi-people',          'Tài khoản',          'TV5'],
