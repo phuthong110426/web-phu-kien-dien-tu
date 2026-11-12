@@ -193,6 +193,44 @@ require_once __DIR__ . '/includes/header.php';
             </div>
         </div>
     </div>
+    <!-- Sản phẩm liên quan -->
+    <?php
+    $rel_stmt = $pdo->prepare("
+        SELECT id, name, thumbnail, price, sale_price 
+        FROM products 
+        WHERE category_id = ? AND id != ? 
+        ORDER BY id DESC 
+        LIMIT 4
+    ");
+    $rel_stmt->execute([$product['category_id'], $id]);
+    $related_products = $rel_stmt->fetchAll();
+    ?>
+    
+    <?php if ($related_products): ?>
+    <div class="mt-5">
+        <h4 class="fw-bold border-bottom pb-2 mb-4"><i class="bi bi-box-seam text-primary me-2"></i>Sản Phẩm Liên Quan</h4>
+        <div class="row g-4">
+            <?php foreach ($related_products as $rp): 
+                $rp_final = ($rp['sale_price'] && $rp['sale_price'] < $rp['price']) ? $rp['sale_price'] : $rp['price'];
+            ?>
+                <div class="col-6 col-md-3">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 p-3 text-center transition-hover">
+                        <a href="product_detail.php?id=<?= $rp['id'] ?>" class="text-decoration-none text-dark">
+                            <img src="<?= htmlspecialchars($rp['thumbnail']) ?>" alt="<?= htmlspecialchars($rp['name']) ?>" class="img-fluid rounded mb-3" style="height: 180px; width: 100%; object-fit: cover;">
+                            <h6 class="fw-semibold text-truncate mb-2" title="<?= htmlspecialchars($rp['name']) ?>"><?= htmlspecialchars($rp['name']) ?></h6>
+                            <div class="text-danger fw-bold mb-1"><?= number_format($rp_final, 0, ',', '.') ?> đ</div>
+                            <?php if ($rp['sale_price'] && $rp['sale_price'] < $rp['price']): ?>
+                                <del class="text-muted small"><?= number_format($rp['price'], 0, ',', '.') ?> đ</del>
+                            <?php else: ?>
+                                <div class="small">&nbsp;</div>
+                            <?php endif; ?>
+                        </a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
