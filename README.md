@@ -19,6 +19,7 @@
 2. Mở trình duyệt vào địa chỉ: **[http://localhost/phpmyadmin](http://localhost/phpmyadmin)**
 3. Bấm vào tab **`Import` (Nhập)** trên thanh menu trên cùng.
 4. Bấm **`Choose File` (Chọn tệp)** -> Chọn file **`database/shop_phukien.sql`** trong thư mục dự án -> Cuộn xuống dưới cùng bấm nút **`Go` (Thực hiện)**.
+5. *(Khuyến nghị)* Tiếp tục **Import** thêm file **`database/seed_100_products.sql`** vào cơ sở dữ liệu `shop_phukien` để nạp bổ sung **100 sản phẩm phụ kiện thật** khớp ảnh theo từng model (nâng tổng lên **108 sản phẩm**, **25 thương hiệu**).
 
 ### Bước 3: Mở trang web và đăng nhập thử
 * **Trang cửa hàng (User):** `http://localhost/web-phu-kien-dien-tu/`
@@ -40,7 +41,7 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 
 ---
 
-###  Thành viên 1 : Thiết kế CSDL + Kết nối Core + Đăng ký / Đăng nhập / Phân quyền
+### Thành viên 1 (Phương Hòa): Thiết kế CSDL + Kết nối Core + Đăng ký / Đăng nhập / Phân quyền
 * **File phụ trách chính:**
   * `database/shop_phukien.sql`
   * `config/db.php`
@@ -56,22 +57,27 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 
 ---
 
-###  Thành viên 2: Giao diện người dùng (UI/UX Responsive) + Trang chủ + Tìm kiếm, Bộ lọc & Phân trang + Trợ lý ảo AI Chatbot
+### Thành viên 2 (Phú Thông): Giao diện người dùng (UI/UX Responsive) + Trang chủ + Tìm kiếm, Bộ lọc & Phân trang + Trợ lý ảo AI Chatbot + Deploy Hosting
 * **File phụ trách chính:**
-  * `includes/header.php`, `includes/footer.php`
+  * `includes/header.php`, `includes/footer.php`, `includes/product_card.php`
   * `index.php` (Trang chủ)
   * `products.php` (Trang cửa hàng + Tìm kiếm + Lọc + Phân trang)
   * `api/chat_ai.php` (Kết nối Google Gemini AI Chatbot)
   * `assets/css/style.css`, `assets/js/main.js` (Hiệu ứng UI & Chatbot AI)
+  * *Hỗ trợ toàn nhóm & Deploy:* `database/seed_100_products.sql`, `admin/product_form.php`, `admin/includes/header.php`, Link Deploy Hosting
 * **Chức năng đã có trong khung:**
   * Thanh điều hướng (Navbar) responsive, tìm kiếm theo từ khóa, hiển thị danh mục.
   * Trang chủ hiển thị phụ kiện nổi bật (Flash Sale) và phụ kiện mới.
   * Trang cửa hàng lọc theo Danh mục, Thương hiệu, Sắp xếp giá và **Phân trang (`LIMIT / OFFSET`)**.
-* ** VIỆC CẦN LÀM THÊM (TODO):**
+* **📌 VIỆC ĐÃ HOÀN THÀNH & CẦN LÀM THÊM:**
   - [x] **Thêm bộ lọc theo Khoảng giá** trong trang `products.php` (*Dưới 1 triệu*, *Từ 1 - 3 triệu*, *Trên 3 triệu*). ✅
   - [x] **Nâng cấp Banner trang chủ (`index.php`):** Banner trượt 3 slide (Bootstrap Carousel) có nút tạm dừng. ✅
-  - [x] **Tối ưu giao diện theo phong cách apple.com:** thêm `assets/css/style.css`, `assets/js/main.js` (hiệu ứng hiện dần khi cuộn, kệ sản phẩm cuộn ngang, thanh lọc dính) và thẻ sản phẩm dùng chung `includes/product_card.php`. ✅
-  - [x] **Tích hợp Trợ lý ảo AI Chatbot (Google Gemini API):** Tư vấn mua phụ kiện điện tử trực tiếp trên web theo dữ liệu sản phẩm trong CSDL, giao diện bong bóng chat kính mờ ✅
+  - [x] **Tối ưu giao diện theo phong cách apple:** thêm `assets/css/style.css`, `assets/js/main.js` (hiệu ứng hiện dần khi cuộn, kệ sản phẩm cuộn ngang, thanh lọc dính) và thẻ sản phẩm dùng chung `includes/product_card.php`. ✅
+  - [x] **Tích hợp Trợ lý ảo AI Chatbot (Google Gemini API):** Tư vấn mua phụ kiện điện tử trực tiếp trên web theo dữ liệu sản phẩm trong CSDL, giao diện bong bóng chat kính mờ chuẩn Apple. ✅
+  - [x] **Tối ưu bộ lọc cửa hàng (`products.php`) & phân trang (`assets/css/style.css`):** Tự động ẩn thương hiệu/danh mục không có sản phẩm hoặc hết hàng (`stock <= 0`) theo bộ lọc hiện tại, tự bỏ hãng không khớp khi chuyển danh mục, và sửa thanh phân trang xuống dòng gọn khi nhiều trang. ✅
+  - [x] **Tạo dữ liệu thật khớp ảnh từng model (`database/seed_100_products.sql`):** Bổ sung **100 sản phẩm phụ kiện điện tử thật** phủ đều 6 danh mục và 25 thương hiệu (nâng tổng CSDL lên **108 sản phẩm**). ✅
+  - [x] **Hỗ trợ hoàn thiện Admin & tích hợp nhóm:** Bổ sung nút xóa từng ảnh phụ (`admin/product_form.php`), bỏ nhãn `TV4 / TV5 / TV6` khỏi sidebar Admin (`admin/includes/header.php`) cho chuyên nghiệp, kiểm thử và đồng bộ code nhóm lên nhánh `main` GitHub. ✅
+  - [ ] **Deploy Website lên Hosting miễn phí** (InfinityFree / 000webhost / AwardSpace): cấu hình kết nối DB trên host (`config/db.php`), import `shop_phukien.sql` + `seed_100_products.sql` và lấy **Link deploy** nộp cho giảng viên.
   - [ ] Chụp ảnh giao diện trên cả màn hình máy tính và điện thoại (Responsive) gửi cho Thành viên 6 làm Slide.
 
 ---
@@ -93,22 +99,22 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 
 ---
 
-###  Thành viên 4: Admin - Quản lý Danh mục, Thương hiệu & Sản phẩm (CRUD + CKEditor + Upload nhiều ảnh)
+### Thành viên 4 (Trần Triết): Admin - Quản lý Danh mục, Thương hiệu & Sản phẩm (CRUD + CKEditor + Upload nhiều ảnh)
 * **File phụ trách chính:**
   * `admin/categories.php` (CRUD Danh mục)
+  * `admin/brands.php` (CRUD Thương hiệu)
   * `admin/products.php` (Danh sách & Xóa sản phẩm + Phân trang Admin)
   * `admin/product_form.php` (Thêm / Sửa sản phẩm + **CKEditor 5** + **Upload nhiều ảnh**)
 * **Chức năng đã có trong khung:**
   * CRUD Danh mục sản phẩm.
   * CRUD Sản phẩm có phân trang, tích hợp sẵn trình soạn thảo **CKEditor 5** và tính năng **Upload nhiều ảnh phụ** lưu vào bảng `product_images`.
 * ** VIỆC CẦN LÀM THÊM (TODO):**
-  - [ ] **Làm thêm phần CRUD Thương hiệu (`brands`)** (Thêm, sửa, xóa các hãng như Logitech, Sony, Anker, Razer...) ngay trong trang `admin/categories.php` hoặc tách ra `admin/brands.php`.
-  - [ ] **Thêm nút xóa từng ảnh phụ** trong trang chỉnh sửa sản phẩm `admin/product_form.php`.
+  - [x] **Làm thêm phần CRUD Thương hiệu (`brands`)** (Thêm, sửa, xóa các hãng như Logitech, Sony, Anker, Razer...) tách riêng tại `admin/brands.php`. ✅
   - [ ] Chuẩn bị phần giải thích kỹ thuật về cách hoạt động của `$_FILES` khi upload nhiều ảnh và cách nhúng CKEditor để báo cáo.
 
 ---
 
-###  Thành viên 5: Admin - Dashboard Thống kê (Chart.js) + Quản lý Đơn hàng & Người dùng
+### Thành viên 5 (Ngọc Hoàn): Admin - Dashboard Thống kê (Chart.js) + Quản lý Đơn hàng & Người dùng
 * **File phụ trách chính:**
   * `admin/index.php` (Bảng điều khiển & Biểu đồ thống kê)
   * `admin/orders.php` (Quản lý & Duyệt trạng thái đơn hàng)
@@ -125,17 +131,17 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 
 ---
 
-###  Thành viên 6: Đánh giá sản phẩm (Reviews) + Nhập dữ liệu mẫu + Deploy Hosting & Làm Slide Thuyết trình
+###  Thành viên 6: Đánh giá sản phẩm (Reviews) + Thống kê sao & Làm Slide Thuyết trình
 * **File phụ trách chính:**
-  * `admin/reviews.php` (Quản lý & Xóa bình luận/đánh giá)
-  * Phần form gửi đánh giá sao trong `product_detail.php`
-  * Slide báo cáo (`.pptx` / `.pdf`) & Link Deploy
+  * `admin/reviews.php` (Quản lý, lọc & xóa bình luận/đánh giá)
+  * Phần thống kê sao & gửi đánh giá trong `product_detail.php`
+  * Slide báo cáo (`.pptx` / `.pdf`)
 * **Chức năng đã có trong khung:**
   * Khách hàng chấm điểm (1-5 sao) và viết nhận xét ở trang chi tiết phụ kiện.
   * Admin xem danh sách toàn bộ đánh giá và xóa các bình luận vi phạm.
 * ** VIỆC CẦN LÀM THÊM (TODO):**
-  - [ ] **Nhập thêm dữ liệu thật đẹp:** Đăng nhập vào Admin, thêm mới khoảng **10 - 12 sản phẩm phụ kiện điện tử** (có ảnh nét, nhiều ảnh phụ, thông số kỹ thuật và mô tả soạn bằng CKEditor) để trang web nhìn phong phú khi Demo.
-  - [ ] **Deploy Website lên Hosting miễn phí** (InfinityFree / 000webhost / AwardSpace) để lấy **Link deploy** nộp cho giảng viên.
+  - [ ] **Nâng cấp trang Quản lý Đánh giá (`admin/reviews.php`):** Thêm bộ lọc theo số sao (1–5 sao), tìm kiếm theo tên sản phẩm / nội dung bình luận, phân trang (`LIMIT / OFFSET`), bọc `.table-responsive` và đổi thao tác xóa sang `POST`.
+  - [ ] **Nâng cấp Đánh giá tại trang chi tiết (`product_detail.php`):** Tính và hiển thị **điểm đánh giá trung bình** (VD: `4.8 / 5 ★`) cùng thống kê số lượng từng mức 1–5 sao *(tùy chọn nâng cao: chỉ khách đã mua đơn `completed` mới được đánh giá)*.
   - [ ] **Thiết kế Slide thuyết trình (.pptx và xuất .pdf)** bám sát yêu cầu đề bài:
     1. Giới thiệu đề tài & Bảng phân công + Đánh giá mức độ hoàn thành của 6 thành viên.
     2. Phân tích thiết kế hệ thống (Sơ đồ chức năng User/Admin, Sơ đồ CSDL ERD 8 bảng).
