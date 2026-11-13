@@ -33,10 +33,10 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO `users` (`fullname`, `email`, `password`, `phone`, `address`, `role`, `status`) VALUES
-('Quản Trị Viên (Admin)', 'admin@gmail.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0901234567', 'Quận 1, TP. Hồ Chí Minh', 'admin', 1),
-('Nguyễn Văn Khách', 'khach@gmail.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0987654321', 'Quận Cầu Giấy, Hà Nội', 'user', 1),
-('Trần Thị Minh Anh', 'minhanh@gmail.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '0912345678', 'Quận Hải Châu, Đà Nẵng', 'user', 1);
--- Lưu ý: Chuỗi hash ở trên tương ứng với mật khẩu 'password' hoặc trong code hỗ trợ đăng nhập bằng '123456'
+('Quản Trị Viên (Admin)', 'admin@gmail.com', '$2y$10$pQpvKJVc1TASDsdPR8yRbemw6C7kYEOxIQ5qHSBO01nCZEU/8xAlS', '0901234567', 'Quận 1, TP. Hồ Chí Minh', 'admin', 1),
+('Nguyễn Văn Khách', 'khach@gmail.com', '$2y$10$pQpvKJVc1TASDsdPR8yRbemw6C7kYEOxIQ5qHSBO01nCZEU/8xAlS', '0987654321', 'Quận Cầu Giấy, Hà Nội', 'user', 1),
+('Trần Thị Minh Anh', 'minhanh@gmail.com', '$2y$10$pQpvKJVc1TASDsdPR8yRbemw6C7kYEOxIQ5qHSBO01nCZEU/8xAlS', '0912345678', 'Quận Hải Châu, Đà Nẵng', 'user', 1);
+-- Lưu ý: Chuỗi hash ở trên tương ứng với mật khẩu '123456'
 
 -- --------------------------------------------------------
 -- 2. Bảng `categories` (Danh mục phụ kiện - Thành viên 4)
