@@ -27,7 +27,7 @@
 
 | Loại tài khoản | Email đăng nhập | Mật khẩu | Quyền hạn |
 | :--- | :--- | :--- | :--- |
-| **Quản trị viên (Admin)** | `admin@gmail.com` | `123456` | Toàn quyền vào trang Admin + Mua hàng |
+| **Quản trị viên (Admin)** | `admin@gmail.com` | `password` | Toàn quyền vào trang Admin + Mua hàng |
 | **Khách hàng (User 1)** | `khach@gmail.com` | `123456` | Mua hàng, xem đơn hàng, gửi đánh giá |
 | **Khách hàng (User 2)** | `minhanh@gmail.com` | `123456` | Mua hàng, xem đơn hàng, gửi đánh giá |
 
