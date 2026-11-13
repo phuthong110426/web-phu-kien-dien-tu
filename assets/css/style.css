@@ -264,6 +264,44 @@ a { color: var(--tg-accent); }
 }
 .form-check-input:checked { background-color: var(--tg-accent); border-color: var(--tg-accent); }
 
+/* Ô nhập mật khẩu có nút hiện/ẩn độc lập trình duyệt */
+.tg-password-wrap {
+    position: relative;
+}
+.tg-password-wrap > input.form-control {
+    padding-right: 2.75rem;
+}
+.tg-password-wrap > input::-ms-reveal,
+.tg-password-wrap > input::-ms-clear {
+    display: none;
+}
+.tg-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.45rem;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--tg-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
+    z-index: 2;
+}
+.tg-password-toggle:hover {
+    color: var(--tg-text);
+    background: rgba(0, 0, 0, 0.05);
+}
+.tg-password-toggle:focus-visible {
+    outline: 2px solid var(--tg-accent);
+    outline-offset: 1px;
+}
+
 /* ---------- Bảng ---------- */
 .table { --bs-table-bg: transparent; margin-bottom: 0; }
 .table thead th,
