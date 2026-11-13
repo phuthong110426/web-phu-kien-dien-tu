@@ -20,7 +20,7 @@ $current_file = basename($_SERVER['PHP_SELF']);
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <!-- CSS giao diện riêng của nhóm -->
-    <link href="assets/css/style.css" rel="stylesheet">
+    <link href="assets/css/style.css?v=2" rel="stylesheet">
     <!-- Bật hiệu ứng xuất hiện khi cuộn (chỉ khi trình duyệt có JavaScript) -->
     <script>document.documentElement.classList.add('js');</script>
 </head>
