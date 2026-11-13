@@ -68,7 +68,7 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
   * `products.php` (Trang cửa hàng + Tìm kiếm + Lọc + Phân trang)
   * `api/chat_ai.php` (Kết nối Google Gemini AI Chatbot)
   * `assets/css/style.css`, `assets/js/main.js` (Hiệu ứng UI & Chatbot AI)
-  * *Hỗ trợ toàn nhóm & Deploy:* `database/seed_100_products.sql`, `admin/product_form.php`, `admin/includes/header.php`, Link Deploy Hosting
+  * *Hỗ trợ toàn nhóm & Deploy:* `database/seed_100_products.sql`, `admin/product_form.php`, `uploads/.htaccess`, `admin/includes/header.php`, tối ưu `cart.php`, `checkout.php`, `payment.php`, `database/shop_phukien.sql`, Link Deploy Hosting
 * **Chức năng đã có trong khung:**
   * Thanh điều hướng (Navbar) responsive, tìm kiếm theo từ khóa, hiển thị danh mục.
   * Trang chủ hiển thị phụ kiện nổi bật (Flash Sale) và phụ kiện mới.
@@ -81,9 +81,11 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
   - [x] **Tối ưu bộ lọc cửa hàng (`products.php`) & phân trang (`assets/css/style.css`):** Tự động ẩn thương hiệu/danh mục không có sản phẩm hoặc hết hàng (`stock <= 0`) theo bộ lọc hiện tại, tự bỏ hãng không khớp khi chuyển danh mục, và sửa thanh phân trang xuống dòng gọn khi nhiều trang. ✅
   - [x] **Tạo dữ liệu thật khớp ảnh (`database/seed_100_products.sql`):** Bổ sung **100 sản phẩm phụ kiện điện tử thật** phủ đều 6 danh mục và 25 thương hiệu (nâng tổng CSDL lên **108 sản phẩm**). ✅
   - [x] **Hỗ trợ hoàn thiện Admin & tích hợp nhóm:** Bổ sung nút xóa từng ảnh phụ (`admin/product_form.php`), bỏ nhãn `TV4 / TV5 / TV6` khỏi sidebar Admin (`admin/includes/header.php`) cho chuyên nghiệp, kiểm thử và đồng bộ code nhóm lên nhánh `main` GitHub. ✅
-  - [x] **Deploy Website lên Hosting miễn phí** (InfinityFree / 000webhost / AwardSpace): cấu hình kết nối DB trên host (`config/db.php`), import `shop_phukien.sql` + `seed_100_products.sql` và lấy **Link deploy** nộp cho giảng viên.✅
+  - [x] **Bảo mật Upload ảnh & Validate form sản phẩm (`admin/product_form.php`, `uploads/.htaccess`):** Kiểm tra loại ảnh thật qua `finfo` + `getimagesize()` (chỉ nhận JPG/PNG/WEBP/GIF, tối đa 5MB/ảnh, tối đa 10 ảnh phụ/lần), đổi tên file ngẫu nhiên, validate toàn bộ dữ liệu sản phẩm và thêm `.htaccess` chặn thực thi script trong `uploads/`. ✅
+  - [x] **Tối ưu & kiểm thử luồng Giỏ hàng – Đặt hàng – Thanh toán (`cart.php`, `checkout.php`, `payment.php`, `database/shop_phukien.sql`):** Kiểm tra tồn kho (`stock`) khi thêm/cập nhật giỏ hàng và khóa dòng `FOR UPDATE` lúc đặt hàng, hỗ trợ khách vãng lai thanh toán COD/QR tại `payment.php`, tự động chọn món mới thêm, làm mới `checkout_cart`, báo rõ khi mã giảm giá bị gỡ và cập nhật thành tiền realtime bằng JS. ✅
+  - [x] **Deploy Website lên Hosting miễn phí** (InfinityFree / 000webhost / AwardSpace): cấu hình kết nối DB trên host (`config/db.php`), import `shop_phukien.sql` + `seed_100_products.sql` và lấy **Link deploy** nộp cho giảng viên. ✅
   - [ ] Chụp ảnh giao diện trên cả màn hình máy tính và điện thoại (Responsive) gửi cho Thành viên 6 làm Slide.
-  - [x] Kiểm tra và ghép code của các thành viên trong nhóm.✅
+  - [x] Kiểm tra và ghép code của các thành viên trong nhóm. ✅
 
 ---
 
