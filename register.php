@@ -1,6 +1,6 @@
 <?php
 /**
- * TRANG ĐĂNG KÝ TÀI KHOẢN
+ * TRANG ĐĂNG KÝ TÀI KHOẢN & ĐĂNG XUẤT / HỒ SƠ
  * Phụ trách: Thành viên 1
  */
 require_once __DIR__ . '/config/db.php';
@@ -19,9 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm_password'] ?? '';
 
-    if (strlen($password) < 6) {
-        $error = 'Mật khẩu phải có ít nhất 6 ký tự!';
-    } elseif ($password !== $confirm) {
+    if ($password !== $confirm) {
         $error = 'Mật khẩu xác nhận không khớp!';
     } else {
         $check = $pdo->prepare("SELECT id FROM users WHERE email = ?");
