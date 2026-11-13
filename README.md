@@ -22,7 +22,7 @@
 5. *(Khuyến nghị)* Tiếp tục **Import** thêm file **`database/seed_100_products.sql`** vào cơ sở dữ liệu `shop_phukien` để nạp bổ sung **100 sản phẩm phụ kiện thật** khớp ảnh theo từng model (nâng tổng lên **108 sản phẩm**, **25 thương hiệu**).
 
 ### Bước 3: Mở trang web và đăng nhập thử
-* **Trang cửa hàng (User):** `http://localhost/web-phu-kien-dien-tu/`
+* **Trang cửa hàng (User):** `http://localhost/web-phu-kien-dien-tu-main/`
 * **Trang quản trị (Admin):** `http://localhost/web-phu-kien-dien-tu/admin/`
 
 | Loại tài khoản | Email đăng nhập | Mật khẩu | Quyền hạn |
@@ -46,13 +46,18 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
   * `database/shop_phukien.sql`
   * `config/db.php`
   * `login.php`, `register.php`, `logout.php`, `profile.php`
+  * *Mở rộng & bổ sung mới:* `includes/cart_functions.php`, `includes/coupon.php`, `payment.php`, cùng phần nâng cấp luồng giỏ hàng & thanh toán trong `cart.php`, `checkout.php`
 * **Chức năng đã có trong khung:**
-  * Thiết kế 8 bảng MySQL (`users`, `categories`, `brands`, `products`, `product_images`, `orders`, `order_details`, `reviews`).
+  * Thiết kế 8 bảng MySQL ban đầu (`users`, `categories`, `brands`, `products`, `product_images`, `orders`, `order_details`, `reviews`), nay bổ sung thêm bảng `cart_items` (tổng **9 bảng**).
   * Kết nối PDO, hàm phân quyền `is_logged_in()`, `is_admin()`, `require_admin()`.
   * Đăng ký, Đăng nhập, Đăng xuất, Cập nhật thông tin cá nhân.
-* **📌 VIỆC CẦN LÀM THÊM (TODO):**
-  - [ ] **Code thêm chức năng "Đổi mật khẩu"** trong trang `profile.php` (nhập mật khẩu cũ, mật khẩu mới, xác nhận mật khẩu mới).
-  - [ ] Xuất **Sơ đồ quan hệ thực thể (ERD)** của 8 bảng từ phpMyAdmin (vào `shop_phukien` -> tab `More` -> `Designer`) để đưa vào Slide thuyết trình.
+* **📌 VIỆC ĐÃ HOÀN THÀNH & CẦN LÀM THÊM:**
+  - [x] **Hoàn thiện chức năng "Đổi mật khẩu" & giao diện tài khoản (`profile.php`, `login.php`, `register.php`):** Thêm popup đổi mật khẩu trong `profile.php` (kiểm tra mật khẩu cũ bằng `password_verify()`, tối thiểu 6 ký tự, xác nhận mật khẩu mới, mã hóa `password_hash()`) và hỗ trợ ẩn/hiện mật khẩu (`.tg-password-wrap`). ✅
+  - [x] **Đồng bộ giỏ hàng theo tài khoản trong CSDL (`database/shop_phukien.sql`, `includes/cart_functions.php`, `login.php`, `logout.php`, `cart.php`, `checkout.php`):** Bổ sung bảng `cart_items`, xây dựng các hàm `load_user_cart()`, `save_user_cart()`, `merge_guest_cart_into_user()` để gộp giỏ hàng khách khi đăng nhập, lưu giỏ hàng khi đăng xuất và tự động xóa đúng các sản phẩm đã đặt khỏi `cart_items` sau khi checkout. ✅
+  - [x] **Nâng cấp Giỏ hàng chọn lọc sản phẩm (`cart.php`, `checkout.php`):** Hỗ trợ tick chọn từng sản phẩm hoặc *Chọn tất cả* để thanh toán riêng các món đã chọn, giữ nguyên các sản phẩm chưa chọn trong giỏ và cập nhật số lượng / tổng tiền tức thời bằng JavaScript. ✅
+  - [x] **Tích hợp Mã giảm giá / Coupon (`includes/coupon.php`, `cart.php`, `checkout.php`):** Xây dựng bộ mã giảm giá (`TECHGEAR10`, `WELCOME50`, `TECHGEAR20`) với `get_techgear_coupons()` và `calculate_techgear_discount()` kiểm tra đơn tối thiểu & mức giảm tối đa, hỗ trợ áp dụng / gỡ mã tại giỏ hàng, tính lại giảm giá ở server khi đặt hàng và lưu thông tin mã vào ghi chú đơn hàng. ✅
+  - [x] **Trang Thanh toán Chuyển khoản QR Demo (`payment.php`, `checkout.php`):** Tự động chuyển hướng từ `checkout.php` sang `payment.php?order_id=...` khi chọn phương thức `Chuyển khoản`, hiển thị mã QR và thông tin chuyển khoản mô phỏng theo đơn hàng. ✅
+  - [ ] Xuất **Sơ đồ quan hệ thực thể (ERD)** của 9 bảng từ phpMyAdmin (vào `shop_phukien` -> tab `More` -> `Designer`) để đưa vào Slide thuyết trình.
   - [ ] Kiểm tra và ghép code của các thành viên trong nhóm.
 
 ---
