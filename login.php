@@ -1,9 +1,12 @@
+
 <?php
 /**
  * TRANG ĐĂNG NHẬP HỆ THỐNG
  * Phụ trách: Thành viên 1
  */
+
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/cart_functions.php';
 
 if (is_logged_in()) {
     header('Location: index.php');
@@ -11,35 +14,68 @@ if (is_logged_in()) {
 }
 
 $error = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
     $email = trim($_POST['email'] ?? '');
     $password = trim($_POST['password'] ?? '');
 
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM users
+        WHERE email = ?
+        LIMIT 1
+    ");
+
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 
-    // Chỉ cho phép đăng nhập khi mật khẩu khớp với hash trong database
     if ($user && password_verify($password, $user['password'])) {
+
         if ((int)$user['status'] === 0) {
+
             $error = 'Tài khoản của bạn đã bị khóa bởi Quản trị viên!';
+
         } else {
+
+            $guest_cart = $_SESSION['cart'] ?? [];
+
+            session_regenerate_id(true);
+
             $_SESSION['user'] = [
-                'id' => $user['id'],
+                'id' => (int)$user['id'],
                 'fullname' => $user['fullname'],
                 'email' => $user['email'],
                 'phone' => $user['phone'],
                 'address' => $user['address'],
                 'role' => $user['role']
             ];
-            $_SESSION['flash_success'] = 'Chào mừng ' . $user['fullname'] . ' đã quay trở lại!';
+
+            $_SESSION['cart'] = merge_guest_cart_into_user(
+                $pdo,
+                (int)$user['id'],
+                $guest_cart
+            );
+
+            unset(
+                $_SESSION['selected_cart_ids'],
+                $_SESSION['checkout_cart'],
+                $_SESSION['applied_coupon'],
+                $_SESSION['coupon_message']
+            );
+
+            $_SESSION['flash_success'] =
+                'Chào mừng ' . $user['fullname'] . ' đã quay trở lại!';
+
             if ($user['role'] === 'admin') {
                 header('Location: admin/index.php');
             } else {
                 header('Location: index.php');
             }
+
             exit;
         }
+
     } else {
         $error = 'Email hoặc mật khẩu không chính xác!';
     }
@@ -53,35 +89,61 @@ require_once __DIR__ . '/includes/header.php';
     <div class="row justify-content-center">
         <div class="col-md-5">
             <div class="card border-0 shadow-sm rounded-4 p-4">
+
                 <div class="text-center mb-4">
                     <i class="bi bi-person-badge text-primary display-5"></i>
                     <h4 class="fw-bold mt-2">Đăng Nhập Tài Khoản</h4>
-                    <p class="text-muted small">Đăng nhập để mua sắm và theo dõi đơn hàng phụ kiện</p>
+                    <p class="text-muted small">
+                        Đăng nhập để mua sắm và theo dõi đơn hàng phụ kiện
+                    </p>
                 </div>
 
                 <?php if ($error): ?>
-                    <div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-circle me-1"></i><?= htmlspecialchars($error) ?></div>
+                    <div class="alert alert-danger py-2 small">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        <?= htmlspecialchars($error) ?>
+                    </div>
                 <?php endif; ?>
 
                 <form method="POST">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Địa chỉ Email</label>
-                        <input type="email" name="email" class="form-control" placeholder="nhapemail@gmail.com" required value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+                        <input
+                            type="email"
+                            name="email"
+                            class="form-control"
+                            placeholder="nhapemail@gmail.com"
+                            required
+                            value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
+                        >
                     </div>
+
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Mật khẩu</label>
                         <div class="tg-password-wrap">
-                            <input type="password" name="password" class="form-control" placeholder="Nhập mật khẩu của bạn" required>
+                            <input
+                                type="password"
+                                name="password"
+                                class="form-control"
+                                placeholder="Nhập mật khẩu của bạn"
+                                required
+                            >
                         </div>
                     </div>
+
                     <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
-                        <i class="bi bi-box-arrow-in-right me-1"></i> Đăng Nhập
+                        <i class="bi bi-box-arrow-in-right me-1"></i>
+                        Đăng Nhập
                     </button>
                 </form>
 
                 <div class="text-center mt-3 small">
-                    Chưa có tài khoản? <a href="register.php" class="fw-semibold text-decoration-none">Đăng ký ngay</a>
+                    Chưa có tài khoản?
+                    <a href="register.php" class="fw-semibold text-decoration-none">
+                        Đăng ký ngay
+                    </a>
                 </div>
+
             </div>
         </div>
     </div>

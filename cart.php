@@ -1,159 +1,857 @@
+
 <?php
 /**
- * GIỎ HÀNG & THANH TOÁN (CHECKOUT)
+ * GIỎ HÀNG TECHGEAR
+ * Chọn sản phẩm muốn thanh toán
  * Phụ trách: Thành viên 3
  */
-require_once __DIR__ . '/config/db.php';
 
-if (!isset($_SESSION['cart'])) {
+require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/coupon.php';
+require_once __DIR__ . '/includes/cart_functions.php';
+
+// Khởi tạo giỏ hàng session
+if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
+}
+
+// Xác định tài khoản đang đăng nhập
+$current_user_id = is_logged_in()
+    ? (int)$_SESSION['user']['id']
+    : 0;
+
+// Nếu đã đăng nhập, lấy giỏ hàng từ database
+if ($current_user_id > 0) {
+    $_SESSION['cart'] = load_user_cart($pdo, $current_user_id);
 }
 
 $action = $_GET['action'] ?? '';
 $id = (int)($_GET['id'] ?? 0);
 $qty = max(1, (int)($_GET['qty'] ?? 1));
 
+// Thêm sản phẩm vào giỏ hàng
 if ($action === 'add' && $id > 0) {
-    $_SESSION['cart'][$id] = ($_SESSION['cart'][$id] ?? 0) + $qty;
-    $_SESSION['flash_success'] = 'Đã thêm sản phẩm vào giỏ hàng!';
-    header('Location: cart.php');
-    exit;
-}
 
-if ($action === 'remove' && $id > 0) {
-    unset($_SESSION['cart'][$id]);
-    $_SESSION['flash_success'] = 'Đã xóa sản phẩm khỏi giỏ hàng!';
-    header('Location: cart.php');
-    exit;
-}
+    // Kiểm tra sản phẩm có tồn tại không
+    $stmt = $pdo->prepare("
+        SELECT id FROM products WHERE id = ?
+    ");
+    $stmt->execute([$id]);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_cart'])) {
-    foreach ($_POST['quantities'] ?? [] as $pid => $q) {
-        $pid = (int)$pid;
-        $q = (int)$q;
-        if ($q <= 0) {
-            unset($_SESSION['cart'][$pid]);
-        } else {
-            $_SESSION['cart'][$pid] = $q;
+    if ($stmt->fetch()) {
+        $_SESSION['cart'][$id] = ($_SESSION['cart'][$id] ?? 0) + $qty;
+
+        // Lưu vào database nếu đã đăng nhập
+        if ($current_user_id > 0) {
+            save_user_cart($pdo, $current_user_id, $_SESSION['cart']);
         }
+
+        $_SESSION['flash_success'] = 'Đã thêm sản phẩm vào giỏ hàng!';
+    } else {
+        $_SESSION['flash_success'] = 'Sản phẩm không tồn tại.';
     }
-    $_SESSION['flash_success'] = 'Đã cập nhật số lượng giỏ hàng!';
+
     header('Location: cart.php');
     exit;
 }
 
-// Lấy thông tin chi tiết các sản phẩm trong giỏ
+// Xóa sản phẩm khỏi giỏ hàng
+if ($action === 'remove' && $id > 0) {
+
+    unset($_SESSION['cart'][$id]);
+
+    // Đồng bộ database
+    if ($current_user_id > 0) {
+        save_user_cart($pdo, $current_user_id, $_SESSION['cart']);
+    }
+
+    // Xóa khỏi danh sách sản phẩm được chọn
+    $_SESSION['selected_cart_ids'] = array_values(array_diff(
+        $_SESSION['selected_cart_ids'] ?? [],
+        [$id]
+    ));
+
+    $_SESSION['flash_success'] = 'Đã xóa sản phẩm khỏi giỏ hàng!';
+
+    header('Location: cart.php');
+    exit;
+}
+
+// Xử lý cập nhật giỏ hàng, coupon và đặt hàng
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    if (
+        isset($_POST['update_cart']) ||
+        isset($_POST['checkout_selected']) ||
+        isset($_POST['apply_coupon']) ||
+        isset($_POST['remove_coupon'])
+    ) {
+
+        // Cập nhật số lượng sản phẩm
+        foreach ($_POST['quantities'] ?? [] as $pid => $q) {
+
+            $pid = (int)$pid;
+            $q = (int)$q;
+
+            if (!isset($_SESSION['cart'][$pid])) {
+                continue;
+            }
+
+            if ($q <= 0) {
+                unset($_SESSION['cart'][$pid]);
+            } else {
+                $_SESSION['cart'][$pid] = $q;
+            }
+        }
+
+        // Lưu giỏ hàng sau khi cập nhật
+        if ($current_user_id > 0) {
+            save_user_cart($pdo, $current_user_id, $_SESSION['cart']);
+        }
+
+        // Lưu danh sách sản phẩm được chọn
+        $selected_ids = array_map(
+            'intval',
+            $_POST['selected_products'] ?? []
+        );
+
+        $selected_ids = array_values(array_unique(array_filter(
+            $selected_ids,
+            function ($pid) {
+                return isset($_SESSION['cart'][$pid]);
+            }
+        )));
+
+        $_SESSION['selected_cart_ids'] = $selected_ids;
+
+        // Tính tổng tiền sản phẩm được chọn
+        $coupon_total = 0;
+        $cart_ids = array_keys($_SESSION['cart']);
+
+        if (!empty($cart_ids)) {
+
+            $placeholders = implode(
+                ',',
+                array_fill(0, count($cart_ids), '?')
+            );
+
+            $stmt = $pdo->prepare("
+                SELECT id, price, sale_price
+                FROM products
+                WHERE id IN ($placeholders)
+            ");
+
+            $stmt->execute($cart_ids);
+
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $product) {
+
+                $pid = (int)$product['id'];
+
+                if (in_array($pid, $selected_ids, true)) {
+
+                    $price = (
+                        !empty($product['sale_price']) &&
+                        $product['sale_price'] < $product['price']
+                    ) ? $product['sale_price'] : $product['price'];
+
+                    $coupon_total += $price * (int)$_SESSION['cart'][$pid];
+                }
+            }
+        }
+
+        // Áp dụng mã giảm giá
+        if (isset($_POST['apply_coupon'])) {
+
+            $coupon_code = strtoupper(trim($_POST['coupon_code'] ?? ''));
+
+            if (empty($selected_ids)) {
+
+                unset($_SESSION['applied_coupon']);
+
+                $_SESSION['coupon_message'] =
+                    'Vui lòng chọn sản phẩm trước khi áp dụng mã giảm giá.';
+
+            } else {
+
+                $result = calculate_techgear_discount(
+                    $coupon_code,
+                    $coupon_total
+                );
+
+                if ($result['valid']) {
+
+                    $_SESSION['applied_coupon'] = $coupon_code;
+
+                    $_SESSION['coupon_message'] = $result['message'];
+
+                } else {
+
+                    unset($_SESSION['applied_coupon']);
+
+                    $_SESSION['coupon_message'] = $result['message'];
+                }
+            }
+
+            header('Location: cart.php');
+            exit;
+        }
+
+        // Gỡ mã giảm giá
+        if (isset($_POST['remove_coupon'])) {
+
+            unset($_SESSION['applied_coupon']);
+
+            $_SESSION['coupon_message'] = 'Đã gỡ mã giảm giá.';
+
+            header('Location: cart.php');
+            exit;
+        }
+
+        // Chuyển sản phẩm được chọn sang checkout
+        if (isset($_POST['checkout_selected'])) {
+
+            if (empty($selected_ids)) {
+
+                $_SESSION['flash_success'] =
+                    'Vui lòng chọn ít nhất một sản phẩm để thanh toán!';
+
+                header('Location: cart.php');
+                exit;
+            }
+
+            $_SESSION['checkout_cart'] = [];
+
+            foreach ($selected_ids as $pid) {
+                $_SESSION['checkout_cart'][$pid] =
+                    $_SESSION['cart'][$pid];
+            }
+
+            header('Location: checkout.php');
+            exit;
+        }
+
+        $_SESSION['flash_success'] = 'Đã cập nhật giỏ hàng thành công!';
+
+        header('Location: cart.php');
+        exit;
+    }
+}
+
+// Lấy thông tin sản phẩm trong giỏ
 $cart_items = [];
 $total_amount = 0;
+$selected_total = 0;
+
 if (!empty($_SESSION['cart'])) {
+
     $ids = array_keys($_SESSION['cart']);
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $stmt = $pdo->prepare("SELECT * FROM products WHERE id IN ($placeholders)");
+
+    $placeholders = implode(
+        ',',
+        array_fill(0, count($ids), '?')
+    );
+
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM products
+        WHERE id IN ($placeholders)
+    ");
+
     $stmt->execute($ids);
-    $rows = $stmt->fetchAll();
+
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     foreach ($rows as $r) {
-        $unit_price = ($r['sale_price'] && $r['sale_price'] < $r['price']) ? $r['sale_price'] : $r['price'];
-        $quantity = $_SESSION['cart'][$r['id']];
+
+        $unit_price = (
+            !empty($r['sale_price']) &&
+            $r['sale_price'] < $r['price']
+        ) ? $r['sale_price'] : $r['price'];
+
+        $quantity = (int)$_SESSION['cart'][$r['id']];
+
         $subtotal = $unit_price * $quantity;
+
         $total_amount += $subtotal;
+
         $r['unit_price'] = $unit_price;
         $r['cart_qty'] = $quantity;
         $r['subtotal'] = $subtotal;
+
         $cart_items[] = $r;
     }
 }
 
+// Mặc định chọn tất cả sản phẩm khi chưa có lựa chọn
+if (!isset($_SESSION['selected_cart_ids'])) {
+    $_SESSION['selected_cart_ids'] = array_keys($_SESSION['cart']);
+}
+
+// Chỉ giữ ID còn tồn tại trong giỏ
+$_SESSION['selected_cart_ids'] = array_values(array_filter(
+    $_SESSION['selected_cart_ids'],
+    function ($pid) {
+        return isset($_SESSION['cart'][$pid]);
+    }
+));
+
+$selected_ids = array_map(
+    'intval',
+    $_SESSION['selected_cart_ids']
+);
+
+// Tính tổng tiền sản phẩm được chọn
+foreach ($cart_items as $item) {
+
+    if (in_array((int)$item['id'], $selected_ids, true)) {
+        $selected_total += $item['subtotal'];
+    }
+}
+
+// Kiểm tra mã giảm giá
+$coupon_discount = 0;
+$applied_coupon = $_SESSION['applied_coupon'] ?? '';
+$coupon_config = null;
+
+if ($applied_coupon !== '') {
+
+    $coupon_result = calculate_techgear_discount(
+        $applied_coupon,
+        $selected_total
+    );
+
+    if ($coupon_result['valid']) {
+
+        $coupon_discount = $coupon_result['discount'];
+
+        $coupon_config = get_techgear_coupons()[$applied_coupon] ?? null;
+
+    } else {
+
+        unset($_SESSION['applied_coupon']);
+
+        $applied_coupon = '';
+    }
+}
+
+$final_total = max(0, $selected_total - $coupon_discount);
+
+// Thông báo một lần
+$flash_success = $_SESSION['flash_success'] ?? '';
+$coupon_message = $_SESSION['coupon_message'] ?? '';
+
+unset(
+    $_SESSION['flash_success'],
+    $_SESSION['coupon_message']
+);
+
 $page_title = 'Giỏ hàng của bạn';
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
+<style>
+    .cart-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #0d6efd;
+    }
+
+    .cart-product-image {
+        width: 68px;
+        height: 68px;
+        object-fit: cover;
+    }
+
+    .cart-summary {
+        position: sticky;
+        top: 100px;
+    }
+
+    .cart-product-row {
+        transition: background 0.2s;
+    }
+
+    .cart-product-row:hover {
+        background: #fafafa;
+    }
+
+    .cart-total {
+        color: #dc3545;
+    }
+
+    @media (max-width: 768px) {
+        .cart-summary {
+            position: static;
+        }
+    }
+</style>
+
 <div class="container my-4">
-    <h4 class="fw-bold mb-4"><i class="bi bi-cart3 text-primary me-2"></i>Giỏ Hàng Của Bạn</h4>
+
+    <h4 class="fw-bold mb-4">
+        <i class="bi bi-cart3 text-primary me-2"></i>
+        Giỏ Hàng Của Bạn
+    </h4>
+
+    <?php if ($flash_success !== ''): ?>
+        <div class="alert alert-success">
+            <?= htmlspecialchars($flash_success) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($coupon_message !== ''): ?>
+        <div class="alert <?= strpos($coupon_message, 'thành công') !== false || strpos($coupon_message, 'Đã gỡ') !== false ? 'alert-success' : 'alert-warning' ?>">
+            <?= htmlspecialchars($coupon_message) ?>
+        </div>
+    <?php endif; ?>
 
     <?php if (empty($cart_items)): ?>
+
         <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+
             <i class="bi bi-cart-x display-3 text-muted"></i>
+
             <h5 class="mt-3">Giỏ hàng của bạn đang trống</h5>
-            <p class="text-muted small">Hãy chọn thêm các mẫu tai nghe, bàn phím, chuột gaming yêu thích nhé!</p>
+
+            <p class="text-muted small">
+                Hãy chọn thêm các mẫu tai nghe, bàn phím,
+                chuột gaming yêu thích nhé!
+            </p>
+
             <div>
-                <a href="products.php" class="btn btn-primary px-4 fw-semibold">Tiếp Tục Mua Sắm</a>
+                <a href="products.php" class="btn btn-primary px-4 fw-semibold">
+                    Tiếp Tục Mua Sắm
+                </a>
             </div>
+
         </div>
+
     <?php else: ?>
-        <form method="POST">
+
+        <form method="POST" id="cartForm">
+
             <div class="row g-4">
+
+                <!-- DANH SÁCH SẢN PHẨM -->
                 <div class="col-lg-8">
+
                     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+
+                        <div class="p-3 bg-light border-bottom">
+
+                            <label class="d-flex align-items-center gap-2 fw-semibold mb-0">
+
+                                <input
+                                    type="checkbox"
+                                    id="selectAll"
+                                    class="cart-checkbox"
+                                    <?= count($selected_ids) === count($cart_items) ? 'checked' : '' ?>
+                                >
+
+                                Chọn tất cả (<?= count($cart_items) ?> sản phẩm)
+
+                            </label>
+
+                        </div>
+
                         <div class="table-responsive">
+
                             <table class="table align-middle mb-0">
+
                                 <thead class="table-light">
+
                                     <tr>
+                                        <th style="width:45px;"></th>
                                         <th>Phụ kiện</th>
                                         <th>Đơn giá</th>
-                                        <th style="width: 110px;">Số lượng</th>
+                                        <th style="width:110px;">Số lượng</th>
                                         <th>Thành tiền</th>
                                         <th></th>
                                     </tr>
+
                                 </thead>
+
                                 <tbody>
+
                                     <?php foreach ($cart_items as $item): ?>
-                                        <tr>
+
+                                        <tr
+                                            class="cart-product-row"
+                                            data-price="<?= (float)$item['unit_price'] ?>"
+                                        >
+
                                             <td>
+
+                                                <input
+                                                    type="checkbox"
+                                                    name="selected_products[]"
+                                                    value="<?= (int)$item['id'] ?>"
+                                                    class="cart-checkbox product-checkbox"
+                                                    <?= in_array((int)$item['id'], $selected_ids, true) ? 'checked' : '' ?>
+                                                >
+
+                                            </td>
+
+                                            <td>
+
                                                 <div class="d-flex align-items-center gap-3">
-                                                    <img src="<?= htmlspecialchars($item['thumbnail']) ?>" class="rounded-3 border" style="width: 64px; height: 64px; object-fit: cover;">
+
+                                                    <img
+                                                        src="<?= htmlspecialchars($item['thumbnail'] ?? '') ?>"
+                                                        class="rounded-3 border cart-product-image"
+                                                        alt="<?= htmlspecialchars($item['name']) ?>"
+                                                    >
+
                                                     <div>
-                                                        <a href="product_detail.php?id=<?= $item['id'] ?>" class="fw-bold text-dark text-decoration-none">
+
+                                                        <a
+                                                            href="product_detail.php?id=<?= (int)$item['id'] ?>"
+                                                            class="fw-bold text-dark text-decoration-none"
+                                                        >
                                                             <?= htmlspecialchars($item['name']) ?>
                                                         </a>
+
                                                     </div>
+
                                                 </div>
+
                                             </td>
-                                            <td class="fw-semibold"><?= format_price($item['unit_price']) ?></td>
-                                            <td>
-                                                <input type="number" name="quantities[<?= $item['id'] ?>]" value="<?= $item['cart_qty'] ?>" min="1" class="form-control form-control-sm text-center">
+
+                                            <td class="fw-semibold">
+                                                <?= format_price($item['unit_price']) ?>
                                             </td>
-                                            <td class="fw-bold text-danger"><?= format_price($item['subtotal']) ?></td>
+
                                             <td>
-                                                <a href="cart.php?action=remove&id=<?= $item['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa sản phẩm này khỏi giỏ?')">
+
+                                                <input
+                                                    type="number"
+                                                    name="quantities[<?= (int)$item['id'] ?>]"
+                                                    value="<?= (int)$item['cart_qty'] ?>"
+                                                    min="1"
+                                                    class="form-control form-control-sm text-center quantity-input"
+                                                >
+
+                                            </td>
+
+                                            <td class="fw-bold text-danger">
+                                                <?= format_price($item['subtotal']) ?>
+                                            </td>
+
+                                            <td>
+
+                                                <a
+                                                    href="cart.php?action=remove&id=<?= (int)$item['id'] ?>"
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    onclick="return confirm('Xóa sản phẩm này khỏi giỏ?')"
+                                                >
                                                     <i class="bi bi-trash"></i>
                                                 </a>
+
                                             </td>
+
                                         </tr>
+
                                     <?php endforeach; ?>
+
                                 </tbody>
+
                             </table>
+
                         </div>
-                        <div class="p-3 bg-light d-flex justify-content-between">
-                            <a href="products.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Mua thêm phụ kiện</a>
-                            <button type="submit" name="update_cart" class="btn btn-dark btn-sm fw-semibold"><i class="bi bi-arrow-clockwise me-1"></i>Cập nhật số lượng</button>
+
+                        <div class="p-3 bg-light d-flex justify-content-between flex-wrap gap-2">
+
+                            <a href="products.php" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-arrow-left me-1"></i>
+                                Mua thêm phụ kiện
+                            </a>
+
+                            <button
+                                type="submit"
+                                name="update_cart"
+                                value="1"
+                                class="btn btn-dark btn-sm fw-semibold"
+                            >
+                                <i class="bi bi-arrow-clockwise me-1"></i>
+                                Cập nhật số lượng
+                            </button>
+
                         </div>
+
                     </div>
+
                 </div>
 
+                <!-- TÓM TẮT ĐƠN HÀNG -->
                 <div class="col-lg-4">
-                    <div class="card border-0 shadow-sm rounded-4 p-4">
-                        <h5 class="fw-bold border-bottom pb-2 mb-3">Tóm Tắt Đơn Hàng</h5>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Tạm tính:</span>
-                            <strong><?= format_price($total_amount) ?></strong>
-                        </div>
+
+                    <div class="card border-0 shadow-sm rounded-4 p-4 cart-summary">
+
+                        <h5 class="fw-bold border-bottom pb-2 mb-3">
+                            Tóm Tắt Đơn Hàng
+                        </h5>
+
                         <div class="d-flex justify-content-between mb-3">
-                            <span>Phí vận chuyển:</span>
+
+                            <span class="text-muted">Tổng sản phẩm trong giỏ:</span>
+
+                            <strong><?= count($cart_items) ?></strong>
+
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-2">
+
+                            <span>Sản phẩm đã chọn:</span>
+
+                            <strong id="selectedCount"><?= count($selected_ids) ?></strong>
+
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-3">
+
+                            <span>Tạm tính:</span>
+
+                            <strong id="selectedTotal">
+                                <?= format_price($selected_total) ?>
+                            </strong>
+
+                        </div>
+
+                        <!-- MÃ GIẢM GIÁ -->
+                        <div class="border rounded-3 p-3 mb-3">
+
+                            <label class="form-label fw-semibold">
+
+                                <i class="bi bi-ticket-perforated me-1"></i>
+                                Mã giảm giá
+
+                            </label>
+
+                            <div class="input-group">
+
+                                <input
+                                    type="text"
+                                    name="coupon_code"
+                                    id="couponCode"
+                                    class="form-control"
+                                    placeholder="Nhập mã giảm giá"
+                                    value="<?= htmlspecialchars($applied_coupon) ?>"
+                                    <?= $applied_coupon !== '' ? 'readonly' : '' ?>
+                                >
+
+                                <?php if ($applied_coupon !== ''): ?>
+
+                                    <button
+                                        type="submit"
+                                        name="remove_coupon"
+                                        value="1"
+                                        class="btn btn-outline-danger"
+                                    >
+                                        Gỡ mã
+                                    </button>
+
+                                <?php else: ?>
+
+                                    <button
+                                        type="submit"
+                                        name="apply_coupon"
+                                        value="1"
+                                        class="btn btn-dark"
+                                    >
+                                        Áp dụng
+                                    </button>
+
+                                <?php endif; ?>
+
+                            </div>
+
+                            <?php if ($applied_coupon !== ''): ?>
+
+                                <small class="text-success d-block mt-2">
+                                    Đang áp dụng mã <?= htmlspecialchars($applied_coupon) ?>
+                                </small>
+
+                            <?php else: ?>
+
+                                <small class="text-muted d-block mt-2">
+                                    Nhập mã ưu đãi để được giảm giá.
+                                </small>
+
+                            <?php endif; ?>
+
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-2">
+
+                            <span class="text-muted">Phí vận chuyển:</span>
+
                             <span class="text-success fw-semibold">Miễn phí</span>
+
                         </div>
+
+                        <div class="d-flex justify-content-between mb-2">
+
+                            <span class="text-muted">Giảm giá:</span>
+
+                            <strong class="text-success" id="couponDiscount">
+                                -<?= format_price($coupon_discount) ?>
+                            </strong>
+
+                        </div>
+
                         <hr>
+
                         <div class="d-flex justify-content-between align-items-center mb-4">
+
                             <span class="fw-bold">Tổng thanh toán:</span>
-                            <span class="fs-4 fw-bold text-danger"><?= format_price($total_amount) ?></span>
+
+                            <span class="fs-4 fw-bold cart-total" id="finalTotal">
+                                <?= format_price($final_total) ?>
+                            </span>
+
                         </div>
-                        <a href="checkout.php" class="btn btn-primary btn-lg w-100 fw-bold">
-                            Tiến Hành Đặt Hàng <i class="bi bi-arrow-right ms-1"></i>
-                        </a>
+
+                        <button
+                            type="submit"
+                            name="checkout_selected"
+                            value="1"
+                            class="btn btn-primary btn-lg w-100 fw-bold"
+                            id="checkoutButton"
+                            <?= empty($selected_ids) ? 'disabled' : '' ?>
+                        >
+                            Tiến Hành Đặt Hàng
+                            <i class="bi bi-arrow-right ms-1"></i>
+                        </button>
+
+                        <p class="text-muted small text-center mt-3 mb-0">
+                            Chỉ những sản phẩm được chọn mới được thanh toán.
+                        </p>
+
                     </div>
+
                 </div>
+
             </div>
+
         </form>
+
     <?php endif; ?>
+
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectedTotal = document.getElementById('selectedTotal');
+    const couponDiscount = document.getElementById('couponDiscount');
+    const finalTotal = document.getElementById('finalTotal');
+    const checkoutButton = document.getElementById('checkoutButton');
+
+    if (!selectAll || !checkoutButton) {
+        return;
+    }
+
+    const coupon = <?= json_encode($coupon_config ? [
+        'type' => $coupon_config['type'],
+        'value' => $coupon_config['value'],
+        'min_order' => $coupon_config['min_order'],
+        'max_discount' => $coupon_config['max_discount']
+    ] : null) ?>;
+
+    function formatMoney(amount) {
+        return new Intl.NumberFormat('vi-VN').format(amount) + ' ₫';
+    }
+
+    function updateSummary() {
+
+        let total = 0;
+        let count = 0;
+
+        checkboxes.forEach(function (checkbox) {
+
+            if (checkbox.checked) {
+
+                const row = checkbox.closest('tr');
+
+                const price = Number(row.dataset.price);
+
+                const quantity = Number(
+                    row.querySelector('.quantity-input').value
+                );
+
+                total += price * Math.max(1, quantity);
+
+                count++;
+            }
+
+        });
+
+        let discount = 0;
+
+        if (coupon && total >= Number(coupon.min_order)) {
+
+            if (coupon.type === 'percent') {
+
+                discount = total * Number(coupon.value) / 100;
+
+            } else {
+
+                discount = Number(coupon.value);
+
+            }
+
+            discount = Math.min(
+                discount,
+                Number(coupon.max_discount),
+                total
+            );
+        }
+
+        const payable = Math.max(0, total - discount);
+
+        selectedCount.textContent = count;
+
+        selectedTotal.textContent = formatMoney(total);
+
+        couponDiscount.textContent = '-' + formatMoney(discount);
+
+        finalTotal.textContent = formatMoney(payable);
+
+        checkoutButton.disabled = count === 0;
+
+        selectAll.checked =
+            checkboxes.length > 0 && count === checkboxes.length;
+
+        selectAll.indeterminate =
+            count > 0 && count < checkboxes.length;
+    }
+
+    selectAll.addEventListener('change', function () {
+
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = selectAll.checked;
+        });
+
+        updateSummary();
+
+    });
+
+    checkboxes.forEach(function (checkbox) {
+        checkbox.addEventListener('change', updateSummary);
+    });
+
+    document.querySelectorAll('.quantity-input').forEach(function (input) {
+        input.addEventListener('input', updateSummary);
+    });
+
+    updateSummary();
+
+});
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
