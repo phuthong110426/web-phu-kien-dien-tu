@@ -7,45 +7,51 @@
 
 require_once __DIR__ . '/config/db.php';
 
-// Kiểm tra đăng nhập
-if (!is_logged_in()) {
-    header('Location: login.php');
-    exit;
-}
-
 // Lấy mã đơn hàng
 $order_id = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
+$fallback_url = is_logged_in() ? 'my_orders.php' : 'index.php';
 
-// Kiểm tra mã đơn hàng trong session
+// Kiểm tra mã đơn hàng trong session (hỗ trợ cả khách đã đăng nhập lẫn khách vãng lai vừa đặt hàng)
 if (
     $order_id <= 0 ||
     !isset($_SESSION['demo_payment_order_id']) ||
     (int)$_SESSION['demo_payment_order_id'] !== $order_id
 ) {
-    header('Location: my_orders.php');
+    header('Location: ' . $fallback_url);
     exit;
 }
 
 // Lấy thông tin đơn hàng
-$stmt = $pdo->prepare("
-    SELECT *
-    FROM orders
-    WHERE id = ?
-      AND user_id = ?
-      AND payment_method = 'Chuyển khoản'
-    LIMIT 1
-");
-
-$stmt->execute([
-    $order_id,
-    $_SESSION['user']['id']
-]);
+if (is_logged_in()) {
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM orders
+        WHERE id = ?
+          AND (user_id = ? OR user_id IS NULL)
+          AND payment_method = 'Chuyển khoản'
+        LIMIT 1
+    ");
+    $stmt->execute([
+        $order_id,
+        (int)$_SESSION['user']['id']
+    ]);
+} else {
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM orders
+        WHERE id = ?
+          AND user_id IS NULL
+          AND payment_method = 'Chuyển khoản'
+        LIMIT 1
+    ");
+    $stmt->execute([$order_id]);
+}
 
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Không tìm thấy đơn hàng
 if (!$order) {
-    header('Location: my_orders.php');
+    header('Location: ' . $fallback_url);
     exit;
 }
 
@@ -286,13 +292,23 @@ $qr_url = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='
         </div>
 
         <div class="actions">
-            <a href="my_orders.php" class="btn btn-primary">
-                Xem đơn hàng
-            </a>
+            <?php if (is_logged_in()): ?>
+                <a href="my_orders.php" class="btn btn-primary">
+                    Xem đơn hàng
+                </a>
 
-            <a href="index.php" class="btn btn-secondary">
-                Tiếp tục mua sắm
-            </a>
+                <a href="index.php" class="btn btn-secondary">
+                    Tiếp tục mua sắm
+                </a>
+            <?php else: ?>
+                <a href="index.php" class="btn btn-primary">
+                    Tiếp tục mua sắm
+                </a>
+
+                <a href="login.php" class="btn btn-secondary">
+                    Đăng nhập
+                </a>
+            <?php endif; ?>
         </div>
 
     </div>
