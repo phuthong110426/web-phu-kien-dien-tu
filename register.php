@@ -1,6 +1,6 @@
 <?php
 /**
- * TRANG ĐĂNG KÝ TÀI KHOẢN & ĐĂNG XUẤT / HỒ SƠ
+ * TRANG ĐĂNG KÝ TÀI KHOẢN
  * Phụ trách: Thành viên 1
  */
 require_once __DIR__ . '/config/db.php';
@@ -19,7 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm_password'] ?? '';
 
-    if ($password !== $confirm) {
+    if (strlen($password) < 6) {
+        $error = 'Mật khẩu phải có ít nhất 6 ký tự!';
+    } elseif ($password !== $confirm) {
         $error = 'Mật khẩu xác nhận không khớp!';
     } else {
         $check = $pdo->prepare("SELECT id FROM users WHERE email = ?");
@@ -71,11 +73,15 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-semibold">Mật khẩu *</label>
-                            <input type="password" name="password" class="form-control" minlength="6" required>
+                            <div class="tg-password-wrap">
+                                <input type="password" name="password" class="form-control" minlength="6" required>
+                            </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-semibold">Nhập lại mật khẩu *</label>
-                            <input type="password" name="confirm_password" class="form-control" minlength="6" required>
+                            <div class="tg-password-wrap">
+                                <input type="password" name="confirm_password" class="form-control" minlength="6" required>
+                            </div>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Tạo Tài Khoản</button>
