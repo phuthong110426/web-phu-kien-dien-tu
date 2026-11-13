@@ -25,6 +25,17 @@ if (!$product) {
 // Tăng lượt xem
 $pdo->prepare("UPDATE products SET views = views + 1 WHERE id = ?")->execute([$id]);
 
+// Kiểm tra khách đã mua sản phẩm và đơn hàng đã hoàn thành chưa
+function da_mua_hang($pdo, $user_id, $product_id) {
+    $sql = "SELECT COUNT(*)
+            FROM orders o
+            JOIN order_details od ON od.order_id = o.id
+            WHERE o.user_id = ? AND o.status = 'completed' AND od.product_id = ?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$user_id, $product_id]);
+    return $stmt->fetchColumn() > 0;
+}
+
 // Xử lý gửi đánh giá (Thành viên 6)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
     if (!is_logged_in()) {
@@ -32,6 +43,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
         header("Location: login.php");
         exit;
     }
+
+    // Chỉ khách đã mua sản phẩm và có đơn hàng hoàn thành mới được đánh giá
+    $user_id = $_SESSION['user']['id'];
+    if (!da_mua_hang($pdo, $user_id, $id)) {
+        $_SESSION['flash_error'] = 'Chỉ khách đã mua và nhận hàng (đơn hoàn thành) mới được đánh giá sản phẩm này!';
+        header("Location: product_detail.php?id=$id");
+        exit;
+    }
+
     $rating = max(1, min(5, (int)($_POST['rating'] ?? 5)));
     $comment = trim($_POST['comment'] ?? '');
     if ($comment !== '') {
@@ -58,6 +78,35 @@ $rev_stmt = $pdo->prepare("
 ");
 $rev_stmt->execute([$id]);
 $reviews = $rev_stmt->fetchAll();
+
+// Thống kê số lượng từng mức sao và tính điểm trung bình
+$dist = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
+$stmt_star = $pdo->prepare("SELECT rating, COUNT(*) AS cnt FROM reviews WHERE product_id = ? GROUP BY rating");
+$stmt_star->execute([$id]);
+
+foreach ($stmt_star->fetchAll() as $row) {
+    $s = (int)$row['rating'];
+    if (isset($dist[$s])) {
+        $dist[$s] = (int)$row['cnt'];
+    }
+}
+
+$total_reviews = array_sum($dist);
+$sum_stars = 0;
+foreach ($dist as $star => $cnt) {
+    $sum_stars += $star * $cnt;
+}
+
+$avg_rating = 0;
+if ($total_reviews > 0) {
+    $avg_rating = round($sum_stars / $total_reviews, 1);
+}
+
+// Kiểm tra tài khoản hiện tại có được phép gửi đánh giá không
+$can_review = false;
+if (is_logged_in() && da_mua_hang($pdo, $_SESSION['user']['id'], $id)) {
+    $can_review = true;
+}
 
 $final_price = ($product['sale_price'] && $product['sale_price'] < $product['price']) ? $product['sale_price'] : $product['price'];
 $specs = array_filter(array_map('trim', explode('|', $product['specifications'] ?? '')));
@@ -157,6 +206,37 @@ require_once __DIR__ . '/includes/header.php';
             <div class="card border-0 shadow-sm rounded-4 p-4">
                 <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-star-fill text-warning me-2"></i>Đánh Giá Từ Khách Hàng (<?= count($reviews) ?>)</h5>
 
+                <?php if ($total_reviews > 0): ?>
+                <div class="row align-items-center mb-4">
+                    <div class="col-4 text-center">
+                        <div class="display-6 fw-bold text-warning mb-0"><?= number_format($avg_rating, 1) ?></div>
+                        <div class="small text-muted">/ 5 ★</div>
+                        <div class="small text-muted"><?= $total_reviews ?> đánh giá</div>
+                    </div>
+                    <div class="col-8">
+                        <?php foreach ($dist as $star => $cnt):
+                            $pct = $total_reviews > 0 ? round($cnt / $total_reviews * 100) : 0; ?>
+                            <div class="d-flex align-items-center small mb-1">
+                                <span style="width:36px"><?= $star ?> ★</span>
+                                <div class="progress flex-grow-1 mx-2" style="height:8px">
+                                    <div class="progress-bar bg-warning" style="width: <?= $pct ?>%"></div>
+                                </div>
+                                <span class="text-muted" style="width:28px;text-align:right"><?= $cnt ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!$can_review): ?>
+                    <div class="alert alert-light border small mb-4">
+                        <?php if (!is_logged_in()): ?>
+                            <a href="login.php">Đăng nhập</a> để gửi đánh giá.
+                        <?php else: ?>
+                            Chỉ khách đã mua và nhận hàng (đơn hoàn thành) mới được đánh giá sản phẩm này.
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
                 <form method="POST" class="mb-4 bg-light p-3 rounded-3">
                     <div class="mb-2">
                         <label class="form-label small fw-semibold">Chọn số sao:</label>
@@ -173,6 +253,7 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
                     <button type="submit" name="submit_review" class="btn btn-sm btn-primary fw-semibold">Gửi Đánh Giá</button>
                 </form>
+                <?php endif; ?>
 
                 <?php if (empty($reviews)): ?>
                     <p class="text-muted small text-center my-3">Chưa có đánh giá nào. Hãy là người đầu tiên nhận xét!</p>
