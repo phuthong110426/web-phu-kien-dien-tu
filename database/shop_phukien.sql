@@ -11,6 +11,7 @@ USE `shop_phukien`;
 -- 1. Bảng `users` (Quản lý tài khoản & Phân quyền - Thành viên 1 & 5)
 -- Mật khẩu mặc định cho tất cả tài khoản mẫu là: 123456
 -- --------------------------------------------------------
+DROP TABLE IF EXISTS `cart_items`;
 DROP TABLE IF EXISTS `reviews`;
 DROP TABLE IF EXISTS `order_details`;
 DROP TABLE IF EXISTS `orders`;
@@ -206,3 +207,17 @@ INSERT INTO `reviews` (`user_id`, `product_id`, `rating`, `comment`) VALUES
 (2, 1, 5, 'Chuột siêu nhẹ, cầm bắn Valorant cực kỳ chuẩn xác. Giao hàng đóng gói rất kỹ!'),
 (3, 2, 5, 'Bàn phím gõ rất đầm tay, đèn RGB đẹp, kết nối MacBook nhạy.'),
 (2, 3, 4, 'Chống ồn đỉnh thật sự, đeo êm tai không bị đau khi ngồi code lâu.');
+
+-- --------------------------------------------------------
+-- 9. Bảng `cart_items` (Giỏ hàng lưu theo tài khoản - Thành viên 3)
+-- --------------------------------------------------------
+CREATE TABLE `cart_items` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `product_id` INT NOT NULL,
+  `quantity` INT NOT NULL DEFAULT 1,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uniq_user_product` (`user_id`, `product_id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
