@@ -3,15 +3,15 @@ require_once __DIR__ . '/../../config/db.php';
 require_admin();
 $current_page = basename($_SERVER['PHP_SELF']);
 
-// Danh sách menu Admin: [file, icon, tên, thành viên phụ trách]
+// Danh sách menu Admin: [file, icon, tên]
 $admin_menu = [
-    ['index.php',      'bi-grid-1x2',        'Tổng quan',          'TV5'],
-    ['categories.php', 'bi-tags',            'Danh mục',           'TV4'],
-    ['brands.php',     'bi-award',           'Thương hiệu',        'TV4'],
-    ['products.php',   'bi-box-seam',        'Sản phẩm',           'TV4'],
-    ['orders.php',     'bi-receipt',         'Đơn hàng',           'TV5'],
-    ['users.php',      'bi-people',          'Tài khoản',          'TV5'],
-    ['reviews.php',    'bi-chat-left-quote', 'Đánh giá',           'TV6'],
+    ['index.php',      'bi-grid-1x2',        'Tổng quan'],
+    ['categories.php', 'bi-tags',            'Danh mục'],
+    ['brands.php',     'bi-award',           'Thương hiệu'],
+    ['products.php',   'bi-box-seam',        'Sản phẩm'],
+    ['orders.php',     'bi-receipt',         'Đơn hàng'],
+    ['users.php',      'bi-people',          'Tài khoản'],
+    ['reviews.php',    'bi-chat-left-quote', 'Đánh giá'],
 ];
 ?>
 <!DOCTYPE html>
@@ -22,7 +22,7 @@ $admin_menu = [
     <title><?= isset($page_title) ? htmlspecialchars($page_title) . ' - Admin TechGear' : 'Quản Trị Hệ Thống - TechGear' ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="../assets/css/style.css" rel="stylesheet">
@@ -47,7 +47,6 @@ $admin_menu = [
                 <li>
                     <a href="<?= $item[0] ?>" class="nav-link <?= $is_active ? 'active' : '' ?>">
                         <i class="bi <?= $item[1] ?>"></i> <?= $item[2] ?>
-                        <span class="tv-tag"><?= $item[3] ?></span>
                     </a>
                 </li>
             <?php endforeach; ?>
