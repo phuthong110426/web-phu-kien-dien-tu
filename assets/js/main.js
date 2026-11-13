@@ -192,4 +192,33 @@
             if (msg) sendAiMessage(msg);
         });
     }
+
+    /* ---------- 7. Nút hiện / ẩn mật khẩu (ổn định trên mọi trình duyệt) ---------- */
+    function setPasswordState(input, btn, icon, visible) {
+        input.type = visible ? 'text' : 'password';
+        icon.className = visible ? 'bi bi-eye-slash' : 'bi bi-eye';
+        var label = visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu';
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('title', label);
+        btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+    }
+
+    document.querySelectorAll('.tg-password-wrap').forEach(function (wrap) {
+        var input = wrap.querySelector('input');
+        if (!input || wrap.querySelector('.tg-password-toggle')) return;
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tg-password-toggle';
+
+        var icon = document.createElement('i');
+        btn.appendChild(icon);
+        setPasswordState(input, btn, icon, input.type !== 'password');
+
+        btn.addEventListener('click', function () {
+            setPasswordState(input, btn, icon, input.type === 'password');
+        });
+
+        wrap.appendChild(btn);
+    });
 })();
