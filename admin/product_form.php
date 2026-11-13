@@ -362,7 +362,7 @@ require_once __DIR__ . '/includes/header.php';
 
             <div class="col-md-6">
                 <label class="form-label fw-semibold text-primary">
-                    <i class="bi bi-images me-1"></i>Upload nhiều ảnh phụ (Tính năng nâng cao - giữ Ctrl chọn nhiều ảnh)
+                    <i class="bi bi-images me-1"></i>Upload nhiều ảnh phụ (Giữ Ctrl chọn nhiều ảnh)
                 </label>
                 <input type="file" name="gallery_files[]" class="form-control" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple>
                 <?php if (!empty($extra_images)): ?>
