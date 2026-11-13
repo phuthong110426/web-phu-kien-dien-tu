@@ -131,7 +131,7 @@ Bộ khung dự án (Base Code) đã được khởi tạo sẵn để đảm b�
 
 ---
 
-###  Thành viên 6: Đánh giá sản phẩm (Reviews) + Thống kê sao & Làm Slide Thuyết trình
+###  Thành viên 6 (Hồng Anh): Đánh giá sản phẩm (Reviews) + Thống kê sao & Làm Slide Thuyết trình
 * **File phụ trách chính:**
   * `admin/reviews.php` (Quản lý, lọc & xóa bình luận/đánh giá)
   * Phần thống kê sao & gửi đánh giá trong `product_detail.php`
