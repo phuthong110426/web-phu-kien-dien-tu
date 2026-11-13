@@ -30,6 +30,31 @@ if (!is_dir($upload_dir)) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Xóa từng ảnh phụ của sản phẩm (khi bấm nút X trên thumbnail)
+    if (isset($_POST['delete_image_id']) && $id > 0) {
+        $img_id = (int)$_POST['delete_image_id'];
+        $img_stmt = $pdo->prepare("SELECT image_url FROM product_images WHERE id = ? AND product_id = ?");
+        $img_stmt->execute([$img_id, $id]);
+        $img_row = $img_stmt->fetch();
+
+        if ($img_row) {
+            $pdo->prepare("DELETE FROM product_images WHERE id = ? AND product_id = ?")->execute([$img_id, $id]);
+            if (strpos($img_row['image_url'], 'uploads/') === 0) {
+                $still_used = $pdo->prepare("SELECT COUNT(*) FROM product_images WHERE image_url = ?");
+                $still_used->execute([$img_row['image_url']]);
+                if ((int)$still_used->fetchColumn() === 0) {
+                    $file_path = __DIR__ . '/../' . $img_row['image_url'];
+                    if (is_file($file_path)) {
+                        @unlink($file_path);
+                    }
+                }
+            }
+            $_SESSION['flash_success'] = 'Đã xóa ảnh phụ!';
+        }
+        header("Location: product_form.php?id=$id");
+        exit;
+    }
+
     $name = trim($_POST['name'] ?? '');
     $category_id = (int)$_POST['category_id'];
     $brand_id = (int)$_POST['brand_id'] ?: null;
@@ -153,9 +178,19 @@ require_once __DIR__ . '/includes/header.php';
                 </label>
                 <input type="file" name="gallery_files[]" class="form-control" accept="image/*" multiple>
                 <?php if (!empty($extra_images)): ?>
-                    <div class="d-flex gap-2 mt-2">
+                    <div class="d-flex flex-wrap gap-3 mt-3">
                         <?php foreach ($extra_images as $img): ?>
-                            <img src="<?= htmlspecialchars(strpos($img['image_url'], 'http') === 0 ? $img['image_url'] : '../' . $img['image_url']) ?>" class="rounded border" style="width: 48px; height: 48px; object-fit: cover;">
+                            <div class="position-relative d-inline-block">
+                                <img src="<?= htmlspecialchars(strpos($img['image_url'], 'http') === 0 ? $img['image_url'] : '../' . $img['image_url']) ?>"
+                                     class="rounded border" style="width: 64px; height: 64px; object-fit: cover;">
+                                <button type="submit" name="delete_image_id" value="<?= $img['id'] ?>" formnovalidate
+                                        class="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 d-flex align-items-center justify-content-center rounded-circle shadow-sm"
+                                        style="width: 22px; height: 22px; transform: translate(35%, -35%); font-size: 13px;"
+                                        title="Xóa ảnh phụ này"
+                                        onclick="return confirm('Bạn có chắc muốn xóa ảnh phụ này?')">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
