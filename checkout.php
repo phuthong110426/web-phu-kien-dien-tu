@@ -99,6 +99,21 @@ if ($applied_coupon !== '') {
 }
 
 $final_total = max(0, $total_amount - $coupon_discount);
+$error = '';
+
+// Kiểm tra tồn kho sơ bộ để cảnh báo sớm trước khi bấm đặt
+$stock_issues = [];
+foreach ($cart_items as $item) {
+    $avail = (int)($item['stock'] ?? 0);
+    if ($avail <= 0) {
+        $stock_issues[] = $item['name'] . ' hiện đã hết hàng.';
+    } elseif ($item['cart_qty'] > $avail) {
+        $stock_issues[] = $item['name'] . " chỉ còn $avail sản phẩm trong kho (bạn đang đặt {$item['cart_qty']}).";
+    }
+}
+if (!empty($stock_issues)) {
+    $error = implode(' ', $stock_issues) . ' Vui lòng quay lại giỏ hàng để điều chỉnh.';
+}
 
 // Xử lý đặt hàng
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -113,186 +128,215 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ? (int)$_SESSION['user']['id']
         : null;
 
-    // Kiểm tra thông tin người nhận
+    // Kiểm tra thông tin người nhận & phương thức thanh toán
     if (
         $receiver_name === '' ||
         $receiver_phone === '' ||
         $receiver_address === ''
     ) {
-        die('Vui lòng nhập đầy đủ thông tin người nhận.');
-    }
-
-    // Kiểm tra phương thức thanh toán
-    if (!in_array($payment_method, ['COD', 'Chuyển khoản'], true)) {
-        die('Phương thức thanh toán không hợp lệ.');
-    }
-
-    // Ghi thông tin mã giảm giá vào ghi chú đơn hàng
-    if ($applied_coupon !== '' && $coupon_discount > 0) {
-        $coupon_note = sprintf(
-            '[Mã giảm giá: %s | Giảm: %sđ]',
-            $applied_coupon,
-            number_format($coupon_discount, 0, ',', '.')
-        );
-
-        $note = $note !== ''
-            ? $note . ' ' . $coupon_note
-            : $coupon_note;
-    }
-
-    try {
-        $pdo->beginTransaction();
-
-        // Tạo đơn hàng với tổng tiền sau khi giảm giá
-        $ins = $pdo->prepare("
-            INSERT INTO orders (
-                user_id,
-                receiver_name,
-                receiver_phone,
-                receiver_address,
-                note,
-                total_amount,
-                payment_method,
-                status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-        ");
-
-        $ins->execute([
-            $user_id,
-            $receiver_name,
-            $receiver_phone,
-            $receiver_address,
-            $note,
-            $final_total,
-            $payment_method
-        ]);
-
-        // Lấy mã đơn hàng vừa tạo
-        $order_id = $pdo->lastInsertId();
-
-        // Lưu chi tiết đơn hàng
-        // Giá sản phẩm được lưu trước khi trừ coupon.
-        $detail_stmt = $pdo->prepare("
-            INSERT INTO order_details (
-                order_id,
-                product_id,
-                price,
-                quantity
-            )
-            VALUES (?, ?, ?, ?)
-        ");
-
-        foreach ($cart_items as $item) {
-            $detail_stmt->execute([
-                $order_id,
-                $item['id'],
-                $item['unit_price'],
-                $item['cart_qty']
-            ]);
-        }
-
-        /*
-         * XÓA SẢN PHẨM ĐÃ ĐẶT KHỎI GIỎ HÀNG DATABASE
-         *
-         * Chỉ xóa sản phẩm thuộc tài khoản hiện tại.
-         * Các sản phẩm chưa được chọn thanh toán vẫn được giữ lại.
-         */
-        if ($user_id !== null) {
-
-            $checkout_ids = array_map(
-                'intval',
-                array_column($cart_items, 'id')
+        $error = 'Vui lòng nhập đầy đủ thông tin người nhận.';
+    } elseif (!in_array($payment_method, ['COD', 'Chuyển khoản'], true)) {
+        $error = 'Phương thức thanh toán không hợp lệ.';
+    } else {
+        // Ghi thông tin mã giảm giá vào ghi chú đơn hàng
+        $order_note = $note;
+        if ($applied_coupon !== '' && $coupon_discount > 0) {
+            $coupon_note = sprintf(
+                '[Mã giảm giá: %s | Giảm: %sđ]',
+                $applied_coupon,
+                number_format($coupon_discount, 0, ',', '.')
             );
 
-            if (!empty($checkout_ids)) {
+            $order_note = $order_note !== ''
+                ? $order_note . ' ' . $coupon_note
+                : $coupon_note;
+        }
 
-                $delete_placeholders = implode(
-                    ',',
-                    array_fill(0, count($checkout_ids), '?')
+        try {
+            $pdo->beginTransaction();
+
+            // Khóa và kiểm tra lại tồn kho thực tế trước khi tạo đơn
+            $lock_stmt = $pdo->prepare("
+                SELECT id, name, stock
+                FROM products
+                WHERE id IN ($placeholders)
+                FOR UPDATE
+            ");
+            $lock_stmt->execute($ids);
+            $locked_products = [];
+            foreach ($lock_stmt->fetchAll(PDO::FETCH_ASSOC) as $lp) {
+                $locked_products[(int)$lp['id']] = $lp;
+            }
+
+            foreach ($cart_items as $item) {
+                $pid = (int)$item['id'];
+                if (!isset($locked_products[$pid])) {
+                    throw new RuntimeException("Sản phẩm \"{$item['name']}\" không còn tồn tại.");
+                }
+                $avail = (int)$locked_products[$pid]['stock'];
+                if ($avail <= 0) {
+                    throw new RuntimeException("Sản phẩm \"{$item['name']}\" hiện đã hết hàng.");
+                }
+                if ((int)$item['cart_qty'] > $avail) {
+                    throw new RuntimeException("Sản phẩm \"{$item['name']}\" chỉ còn $avail sản phẩm trong kho.");
+                }
+            }
+
+            // Tạo đơn hàng với tổng tiền sau khi giảm giá
+            $ins = $pdo->prepare("
+                INSERT INTO orders (
+                    user_id,
+                    receiver_name,
+                    receiver_phone,
+                    receiver_address,
+                    note,
+                    total_amount,
+                    payment_method,
+                    status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+            ");
+
+            $ins->execute([
+                $user_id,
+                $receiver_name,
+                $receiver_phone,
+                $receiver_address,
+                $order_note,
+                $final_total,
+                $payment_method
+            ]);
+
+            // Lấy mã đơn hàng vừa tạo
+            $order_id = $pdo->lastInsertId();
+
+            // Lưu chi tiết đơn hàng
+            // Giá sản phẩm được lưu trước khi trừ coupon.
+            $detail_stmt = $pdo->prepare("
+                INSERT INTO order_details (
+                    order_id,
+                    product_id,
+                    price,
+                    quantity
+                )
+                VALUES (?, ?, ?, ?)
+            ");
+
+            foreach ($cart_items as $item) {
+                $detail_stmt->execute([
+                    $order_id,
+                    $item['id'],
+                    $item['unit_price'],
+                    $item['cart_qty']
+                ]);
+            }
+
+            /*
+             * XÓA SẢN PHẨM ĐÃ ĐẶT KHỎI GIỎ HÀNG DATABASE
+             *
+             * Chỉ xóa sản phẩm thuộc tài khoản hiện tại.
+             * Các sản phẩm chưa được chọn thanh toán vẫn được giữ lại.
+             */
+            if ($user_id !== null) {
+
+                $checkout_ids = array_map(
+                    'intval',
+                    array_column($cart_items, 'id')
                 );
 
-                $delete_stmt = $pdo->prepare("
-                    DELETE FROM cart_items
-                    WHERE user_id = ?
-                    AND product_id IN ($delete_placeholders)
-                ");
+                if (!empty($checkout_ids)) {
 
-                $delete_stmt->execute(array_merge(
-                    [$user_id],
-                    $checkout_ids
-                ));
+                    $delete_placeholders = implode(
+                        ',',
+                        array_fill(0, count($checkout_ids), '?')
+                    );
+
+                    $delete_stmt = $pdo->prepare("
+                        DELETE FROM cart_items
+                        WHERE user_id = ?
+                        AND product_id IN ($delete_placeholders)
+                    ");
+
+                    $delete_stmt->execute(array_merge(
+                        [$user_id],
+                        $checkout_ids
+                    ));
+                }
             }
-        }
 
-        // Hoàn tất transaction
-        // Đơn hàng và việc xóa giỏ hàng cùng thành công hoặc cùng rollback.
-        $pdo->commit();
+            // Hoàn tất transaction
+            // Đơn hàng và việc xóa giỏ hàng cùng thành công hoặc cùng rollback.
+            $pdo->commit();
 
-        // Đồng bộ lại giỏ hàng sau khi đặt hàng thành công
-        if ($user_id !== null) {
+            // Đồng bộ lại giỏ hàng sau khi đặt hàng thành công
+            if ($user_id !== null) {
 
-            // Lấy lại giỏ hàng còn lại từ database
-            $_SESSION['cart'] = load_user_cart($pdo, $user_id);
+                // Lấy lại giỏ hàng còn lại từ database
+                $_SESSION['cart'] = load_user_cart($pdo, $user_id);
 
-        } else {
+            } else {
 
-            // Khách chưa đăng nhập: chỉ xóa sản phẩm đã đặt khỏi session
-            foreach (array_keys($checkout_cart) as $pid) {
-                unset($_SESSION['cart'][$pid]);
+                // Khách chưa đăng nhập: chỉ xóa sản phẩm đã đặt khỏi session
+                foreach (array_keys($checkout_cart) as $pid) {
+                    unset($_SESSION['cart'][$pid]);
+                }
             }
-        }
-        // Xóa dữ liệu thanh toán tạm và mã giảm giá đã sử dụng
-        unset(
-            $_SESSION['checkout_cart'],
-            $_SESSION['applied_coupon']
-        );
-
-        // Cập nhật danh sách sản phẩm còn được chọn
-        $_SESSION['selected_cart_ids'] = array_values(
-            array_intersect(
-                $_SESSION['selected_cart_ids'] ?? [],
-                array_keys($_SESSION['cart'])
-            )
-        );
-
-        // Nếu khách chọn chuyển khoản QR Demo
-        if ($payment_method === 'Chuyển khoản') {
-
-            $_SESSION['demo_payment_order_id'] = $order_id;
-
-            header(
-                'Location: payment.php?order_id=' . $order_id
+            // Xóa dữ liệu thanh toán tạm và mã giảm giá đã sử dụng
+            unset(
+                $_SESSION['checkout_cart'],
+                $_SESSION['applied_coupon']
             );
+
+            // Cập nhật danh sách sản phẩm còn được chọn
+            $_SESSION['selected_cart_ids'] = array_values(
+                array_intersect(
+                    $_SESSION['selected_cart_ids'] ?? [],
+                    array_keys($_SESSION['cart'])
+                )
+            );
+
+            // Nếu khách chọn chuyển khoản QR Demo
+            if ($payment_method === 'Chuyển khoản') {
+
+                $_SESSION['demo_payment_order_id'] = $order_id;
+
+                header(
+                    'Location: payment.php?order_id=' . $order_id
+                );
+                exit;
+            }
+
+            // Nếu khách chọn COD
+            $_SESSION['flash_success'] =
+                "Đặt hàng thành công! Mã đơn hàng của bạn là #$order_id.";
+
+            header('Location: ' . (is_logged_in() ? 'my_orders.php' : 'index.php'));
             exit;
+
+        } catch (Exception $e) {
+
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            $error = $e instanceof RuntimeException
+                ? $e->getMessage()
+                : 'Có lỗi xảy ra khi đặt hàng: ' . $e->getMessage();
         }
-
-        // Nếu khách chọn COD
-        $_SESSION['flash_success'] =
-            "Đặt hàng thành công! Mã đơn hàng của bạn là #$order_id.";
-
-        header('Location: my_orders.php');
-        exit;
-
-    } catch (Exception $e) {
-
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-
-        die(
-            'Có lỗi xảy ra khi đặt hàng: ' .
-            htmlspecialchars($e->getMessage())
-        );
     }
 }
 
-// Lấy thông tin người dùng để điền sẵn biểu mẫu
+// Lấy thông tin người dùng để điền sẵn biểu mẫu (giữ lại dữ liệu POST nếu có lỗi)
 $user = $_SESSION['user'] ?? [
     'fullname' => '',
     'phone' => '',
     'address' => ''
 ];
+$form_name = $_POST['receiver_name'] ?? ($user['fullname'] ?? '');
+$form_phone = $_POST['receiver_phone'] ?? ($user['phone'] ?? '');
+$form_address = $_POST['receiver_address'] ?? ($user['address'] ?? '');
+$form_payment = $_POST['payment_method'] ?? 'COD';
+$form_note = $_POST['note'] ?? '';
 
 $page_title = 'Thanh toán đơn hàng';
 
@@ -305,6 +349,13 @@ require_once __DIR__ . '/includes/header.php';
         <i class="bi bi-credit-card text-primary me-2"></i>
         Xác Nhận Đặt Hàng
     </h4>
+
+    <?php if ($error !== ''): ?>
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <?= htmlspecialchars($error) ?>
+        </div>
+    <?php endif; ?>
 
     <form method="POST">
 
@@ -329,7 +380,7 @@ require_once __DIR__ . '/includes/header.php';
                             name="receiver_name"
                             class="form-control"
                             required
-                            value="<?= htmlspecialchars($user['fullname'] ?? '') ?>"
+                            value="<?= htmlspecialchars($form_name) ?>"
                         >
                     </div>
 
@@ -343,7 +394,7 @@ require_once __DIR__ . '/includes/header.php';
                             name="receiver_phone"
                             class="form-control"
                             required
-                            value="<?= htmlspecialchars($user['phone'] ?? '') ?>"
+                            value="<?= htmlspecialchars($form_phone) ?>"
                         >
                     </div>
 
@@ -358,7 +409,7 @@ require_once __DIR__ . '/includes/header.php';
                             class="form-control"
                             placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành..."
                             required
-                            value="<?= htmlspecialchars($user['address'] ?? '') ?>"
+                            value="<?= htmlspecialchars($form_address) ?>"
                         >
                     </div>
 
@@ -372,11 +423,11 @@ require_once __DIR__ . '/includes/header.php';
                             class="form-select"
                             required
                         >
-                            <option value="COD">
+                            <option value="COD" <?= $form_payment === 'COD' ? 'selected' : '' ?>>
                                 Thanh toán khi nhận hàng (COD)
                             </option>
 
-                            <option value="Chuyển khoản">
+                            <option value="Chuyển khoản" <?= $form_payment === 'Chuyển khoản' ? 'selected' : '' ?>>
                                 Chuyển khoản ngân hàng / QR
                             </option>
                         </select>
@@ -392,7 +443,7 @@ require_once __DIR__ . '/includes/header.php';
                             rows="2"
                             class="form-control"
                             placeholder="Ghi chú thời gian giao hàng..."
-                        ></textarea>
+                        ><?= htmlspecialchars($form_note) ?></textarea>
                     </div>
 
                 </div>

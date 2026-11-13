@@ -32,23 +32,48 @@ $qty = max(1, (int)($_GET['qty'] ?? 1));
 // Thêm sản phẩm vào giỏ hàng
 if ($action === 'add' && $id > 0) {
 
-    // Kiểm tra sản phẩm có tồn tại không
+    // Kiểm tra sản phẩm và tồn kho
     $stmt = $pdo->prepare("
-        SELECT id FROM products WHERE id = ?
+        SELECT id, name, stock FROM products WHERE id = ?
     ");
     $stmt->execute([$id]);
+    $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($stmt->fetch()) {
-        $_SESSION['cart'][$id] = ($_SESSION['cart'][$id] ?? 0) + $qty;
-
-        // Lưu vào database nếu đã đăng nhập
-        if ($current_user_id > 0) {
-            save_user_cart($pdo, $current_user_id, $_SESSION['cart']);
-        }
-
-        $_SESSION['flash_success'] = 'Đã thêm sản phẩm vào giỏ hàng!';
+    if (!$product) {
+        $_SESSION['flash_error'] = 'Sản phẩm không tồn tại.';
+    } elseif ((int)$product['stock'] <= 0) {
+        $_SESSION['flash_error'] = 'Sản phẩm "' . $product['name'] . '" hiện đã hết hàng!';
     } else {
-        $_SESSION['flash_success'] = 'Sản phẩm không tồn tại.';
+        $stock = (int)$product['stock'];
+        $current_qty = (int)($_SESSION['cart'][$id] ?? 0);
+
+        if ($current_qty >= $stock) {
+            $_SESSION['flash_error'] = 'Sản phẩm "' . $product['name'] . "\" đã đạt số lượng tối đa trong kho ($stock).";
+        } else {
+            $requested_total = $current_qty + $qty;
+            $_SESSION['cart'][$id] = min($stock, $requested_total);
+
+            // Tự động tick chọn sản phẩm mới thêm
+            if (isset($_SESSION['selected_cart_ids']) && is_array($_SESSION['selected_cart_ids'])) {
+                $_SESSION['selected_cart_ids'] = array_values(array_unique(array_merge(
+                    array_map('intval', $_SESSION['selected_cart_ids']),
+                    [$id]
+                )));
+            }
+
+            unset($_SESSION['checkout_cart']);
+
+            // Lưu vào database nếu đã đăng nhập
+            if ($current_user_id > 0) {
+                save_user_cart($pdo, $current_user_id, $_SESSION['cart']);
+            }
+
+            if ($requested_total > $stock) {
+                $_SESSION['flash_success'] = "Đã thêm sản phẩm vào giỏ (tối đa theo tồn kho: $stock sản phẩm).";
+            } else {
+                $_SESSION['flash_success'] = 'Đã thêm sản phẩm vào giỏ hàng!';
+            }
+        }
     }
 
     header('Location: cart.php');
@@ -58,7 +83,7 @@ if ($action === 'add' && $id > 0) {
 // Xóa sản phẩm khỏi giỏ hàng
 if ($action === 'remove' && $id > 0) {
 
-    unset($_SESSION['cart'][$id]);
+    unset($_SESSION['cart'][$id], $_SESSION['checkout_cart']);
 
     // Đồng bộ database
     if ($current_user_id > 0) {
@@ -87,7 +112,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         isset($_POST['remove_coupon'])
     ) {
 
-        // Cập nhật số lượng sản phẩm
+        // Lấy thông tin tồn kho hiện tại của các sản phẩm trong giỏ
+        $stock_map = [];
+        $existing_cart_ids = array_keys($_SESSION['cart']);
+        if (!empty($existing_cart_ids)) {
+            $ph_stock = implode(',', array_fill(0, count($existing_cart_ids), '?'));
+            $stmt_stock = $pdo->prepare("SELECT id, name, stock FROM products WHERE id IN ($ph_stock)");
+            $stmt_stock->execute($existing_cart_ids);
+            foreach ($stmt_stock->fetchAll(PDO::FETCH_ASSOC) as $sp) {
+                $stock_map[(int)$sp['id']] = $sp;
+            }
+        }
+
+        // Cập nhật số lượng sản phẩm (có giới hạn theo tồn kho)
+        $stock_clamped_notes = [];
         foreach ($_POST['quantities'] ?? [] as $pid => $q) {
 
             $pid = (int)$pid;
@@ -97,12 +135,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 continue;
             }
 
-            if ($q <= 0) {
+            $sp_info = $stock_map[$pid] ?? null;
+            $avail_stock = $sp_info ? (int)$sp_info['stock'] : 0;
+
+            if ($q <= 0 || $avail_stock <= 0) {
                 unset($_SESSION['cart'][$pid]);
+                if ($sp_info && $avail_stock <= 0) {
+                    $stock_clamped_notes[] = $sp_info['name'] . ' (đã hết hàng nên được gỡ khỏi giỏ)';
+                }
             } else {
+                if ($q > $avail_stock) {
+                    $q = $avail_stock;
+                    $stock_clamped_notes[] = $sp_info['name'] . " (tối đa $avail_stock)";
+                }
                 $_SESSION['cart'][$pid] = $q;
             }
         }
+
+        unset($_SESSION['checkout_cart']);
 
         // Lưu giỏ hàng sau khi cập nhật
         if ($current_user_id > 0) {
@@ -210,9 +260,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Chuyển sản phẩm được chọn sang checkout
         if (isset($_POST['checkout_selected'])) {
 
+            if (!empty($stock_clamped_notes)) {
+                $_SESSION['flash_error'] =
+                    'Số lượng đã được điều chỉnh theo tồn kho cho: ' . implode(', ', $stock_clamped_notes) . '. Vui lòng kiểm tra lại trước khi đặt hàng!';
+
+                header('Location: cart.php');
+                exit;
+            }
+
             if (empty($selected_ids)) {
 
-                $_SESSION['flash_success'] =
+                $_SESSION['flash_error'] =
                     'Vui lòng chọn ít nhất một sản phẩm để thanh toán!';
 
                 header('Location: cart.php');
@@ -230,7 +288,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $_SESSION['flash_success'] = 'Đã cập nhật giỏ hàng thành công!';
+        if (!empty($stock_clamped_notes)) {
+            $_SESSION['flash_error'] =
+                'Số lượng đã được điều chỉnh theo tồn kho cho: ' . implode(', ', $stock_clamped_notes) . '.';
+        } else {
+            $_SESSION['flash_success'] = 'Đã cập nhật giỏ hàng thành công!';
+        }
 
         header('Location: cart.php');
         exit;
@@ -313,6 +376,10 @@ $coupon_discount = 0;
 $applied_coupon = $_SESSION['applied_coupon'] ?? '';
 $coupon_config = null;
 
+// Thông báo một lần
+$flash_success = $_SESSION['flash_success'] ?? '';
+$coupon_message = $_SESSION['coupon_message'] ?? '';
+
 if ($applied_coupon !== '') {
 
     $coupon_result = calculate_techgear_discount(
@@ -328,6 +395,10 @@ if ($applied_coupon !== '') {
 
     } else {
 
+        if ($coupon_message === '') {
+            $coupon_message = 'Mã giảm giá ' . $applied_coupon . ' đã được gỡ: ' . $coupon_result['message'];
+        }
+
         unset($_SESSION['applied_coupon']);
 
         $applied_coupon = '';
@@ -335,10 +406,6 @@ if ($applied_coupon !== '') {
 }
 
 $final_total = max(0, $selected_total - $coupon_discount);
-
-// Thông báo một lần
-$flash_success = $_SESSION['flash_success'] ?? '';
-$coupon_message = $_SESSION['coupon_message'] ?? '';
 
 unset(
     $_SESSION['flash_success'],
@@ -480,6 +547,7 @@ require_once __DIR__ . '/includes/header.php';
                                         <tr
                                             class="cart-product-row"
                                             data-price="<?= (float)$item['unit_price'] ?>"
+                                            data-stock="<?= max(1, (int)$item['stock']) ?>"
                                         >
 
                                             <td>
@@ -512,6 +580,11 @@ require_once __DIR__ . '/includes/header.php';
                                                         >
                                                             <?= htmlspecialchars($item['name']) ?>
                                                         </a>
+                                                        <?php if ((int)$item['stock'] <= 0): ?>
+                                                            <small class="text-danger d-block">Sản phẩm hiện đã hết hàng</small>
+                                                        <?php else: ?>
+                                                            <small class="text-muted d-block">Còn <?= (int)$item['stock'] ?> sản phẩm</small>
+                                                        <?php endif; ?>
 
                                                     </div>
 
@@ -530,12 +603,13 @@ require_once __DIR__ . '/includes/header.php';
                                                     name="quantities[<?= (int)$item['id'] ?>]"
                                                     value="<?= (int)$item['cart_qty'] ?>"
                                                     min="1"
+                                                    max="<?= max(1, (int)$item['stock']) ?>"
                                                     class="form-control form-control-sm text-center quantity-input"
                                                 >
 
                                             </td>
 
-                                            <td class="fw-bold text-danger">
+                                            <td class="fw-bold text-danger row-subtotal">
                                                 <?= format_price($item['subtotal']) ?>
                                             </td>
 
@@ -669,13 +743,13 @@ require_once __DIR__ . '/includes/header.php';
 
                             <?php if ($applied_coupon !== ''): ?>
 
-                                <small class="text-success d-block mt-2">
+                                <small id="couponStatusText" class="text-success d-block mt-2">
                                     Đang áp dụng mã <?= htmlspecialchars($applied_coupon) ?>
                                 </small>
 
                             <?php else: ?>
 
-                                <small class="text-muted d-block mt-2">
+                                <small id="couponStatusText" class="text-muted d-block mt-2">
                                     Nhập mã ưu đãi để được giảm giá.
                                 </small>
 
@@ -752,11 +826,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const finalTotal = document.getElementById('finalTotal');
     const checkoutButton = document.getElementById('checkoutButton');
 
+    const couponStatusText = document.getElementById('couponStatusText');
+
     if (!selectAll || !checkoutButton) {
         return;
     }
 
     const coupon = <?= json_encode($coupon_config ? [
+        'code' => $applied_coupon,
         'type' => $coupon_config['type'],
         'value' => $coupon_config['value'],
         'min_order' => $coupon_config['min_order'],
@@ -767,6 +844,15 @@ document.addEventListener('DOMContentLoaded', function () {
         return new Intl.NumberFormat('vi-VN').format(amount) + ' ₫';
     }
 
+    function getClampedQty(row) {
+        const input = row.querySelector('.quantity-input');
+        const maxStock = Number(row.dataset.stock) || 1;
+        let qty = Math.floor(Number(input.value) || 1);
+        if (qty < 1) qty = 1;
+        if (qty > maxStock) qty = maxStock;
+        return qty;
+    }
+
     function updateSummary() {
 
         let total = 0;
@@ -774,18 +860,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         checkboxes.forEach(function (checkbox) {
 
+            const row = checkbox.closest('tr');
+            const price = Number(row.dataset.price);
+            const quantity = getClampedQty(row);
+            const rowSubtotal = price * quantity;
+
+            const subtotalCell = row.querySelector('.row-subtotal');
+            if (subtotalCell) {
+                subtotalCell.textContent = formatMoney(rowSubtotal);
+            }
+
             if (checkbox.checked) {
-
-                const row = checkbox.closest('tr');
-
-                const price = Number(row.dataset.price);
-
-                const quantity = Number(
-                    row.querySelector('.quantity-input').value
-                );
-
-                total += price * Math.max(1, quantity);
-
+                total += rowSubtotal;
                 count++;
             }
 
@@ -805,11 +891,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
             }
 
-            discount = Math.min(
+            discount = Math.floor(Math.min(
                 discount,
                 Number(coupon.max_discount),
                 total
-            );
+            ));
+        }
+
+        if (coupon && couponStatusText) {
+            if (total >= Number(coupon.min_order)) {
+                couponStatusText.className = 'text-success d-block mt-2';
+                couponStatusText.textContent = 'Đang áp dụng mã ' + coupon.code;
+            } else {
+                couponStatusText.className = 'text-warning d-block mt-2';
+                couponStatusText.textContent =
+                    'Cần tối thiểu ' + formatMoney(Number(coupon.min_order)) + ' để áp dụng mã ' + coupon.code;
+            }
         }
 
         const payable = Math.max(0, total - discount);
@@ -847,6 +944,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('.quantity-input').forEach(function (input) {
         input.addEventListener('input', updateSummary);
+        input.addEventListener('change', function () {
+            const row = input.closest('tr');
+            input.value = getClampedQty(row);
+            updateSummary();
+        });
     });
 
     updateSummary();
