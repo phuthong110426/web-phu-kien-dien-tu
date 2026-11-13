@@ -1,13 +1,18 @@
 <?php
 /**
  * TRANG CỬA HÀNG: TÌM KIẾM + LỌC (DANH MỤC, HÃNG, KHOẢNG GIÁ) + SẮP XẾP + PHÂN TRANG
- * Phụ trách: Thành viên 2 
+ * Phụ trách: Thành viên 2 (phong cách Apple Store)
  */
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/product_card.php';
 
-$categories = $pdo->query("SELECT * FROM categories WHERE status = 1 ORDER BY id ASC")->fetchAll();
-$brands = $pdo->query("SELECT * FROM brands ORDER BY name ASC")->fetchAll();
+$categories = $pdo->query("
+    SELECT c.*
+    FROM categories c
+    WHERE c.status = 1
+      AND EXISTS (SELECT 1 FROM products p WHERE p.category_id = c.id AND p.stock > 0)
+    ORDER BY c.id ASC
+")->fetchAll();
 
 // ---- Các lựa chọn hợp lệ ----
 $price_options = [
@@ -36,29 +41,54 @@ $offset      = ($page - 1) * $limit;
 // Giá bán thực tế (ưu tiên giá khuyến mãi hợp lệ)
 $price_expr = "(CASE WHEN p.sale_price IS NOT NULL AND p.sale_price > 0 AND p.sale_price < p.price THEN p.sale_price ELSE p.price END)";
 
-$where = ["1=1"];
-$params = [];
+$base_where = ["p.stock > 0"];
+$base_params = [];
 
 if ($keyword !== '') {
-    $where[] = "(p.name LIKE ? OR p.specifications LIKE ?)";
-    $params[] = "%$keyword%";
-    $params[] = "%$keyword%";
+    $base_where[] = "(p.name LIKE ? OR p.specifications LIKE ?)";
+    $base_params[] = "%$keyword%";
+    $base_params[] = "%$keyword%";
 }
 if ($category_id > 0) {
-    $where[] = "p.category_id = ?";
-    $params[] = $category_id;
-}
-if ($brand_id > 0) {
-    $where[] = "p.brand_id = ?";
-    $params[] = $brand_id;
+    $base_where[] = "p.category_id = ?";
+    $base_params[] = $category_id;
 }
 // Lọc theo khoảng giá
 if ($price === 'under1') {
-    $where[] = "$price_expr < 1000000";
+    $base_where[] = "$price_expr < 1000000";
 } elseif ($price === '1to3') {
-    $where[] = "$price_expr BETWEEN 1000000 AND 3000000";
+    $base_where[] = "$price_expr BETWEEN 1000000 AND 3000000";
 } elseif ($price === 'over3') {
-    $where[] = "$price_expr > 3000000";
+    $base_where[] = "$price_expr > 3000000";
+}
+
+// Chỉ liệt kê thương hiệu còn hàng khớp với danh mục / từ khóa / mức giá hiện tại
+$base_where_sql = implode(" AND ", $base_where);
+$brand_stmt = $pdo->prepare("
+    SELECT b.*
+    FROM brands b
+    WHERE EXISTS (
+        SELECT 1 FROM products p
+        WHERE p.brand_id = b.id AND $base_where_sql
+    )
+    ORDER BY b.name ASC
+");
+$brand_stmt->execute($base_params);
+$brands = $brand_stmt->fetchAll();
+
+// Biết hãng đang chọn thuộc danh mục nào để tự bỏ hãng khi chuyển sang danh mục không có hãng đó
+$brand_cat_ids = [];
+if ($brand_id > 0) {
+    $bc_stmt = $pdo->prepare("SELECT DISTINCT category_id FROM products WHERE brand_id = ? AND stock > 0");
+    $bc_stmt->execute([$brand_id]);
+    $brand_cat_ids = array_flip(array_map('intval', $bc_stmt->fetchAll(PDO::FETCH_COLUMN)));
+}
+
+$where = $base_where;
+$params = $base_params;
+if ($brand_id > 0) {
+    $where[] = "p.brand_id = ?";
+    $params[] = $brand_id;
 }
 $where_sql = implode(" AND ", $where);
 
@@ -113,8 +143,18 @@ foreach ($categories as $c) {
     if ((int)$c['id'] === $category_id) $current_category = $c;
 }
 $current_brand = null;
-foreach ($brands as $b) {
-    if ((int)$b['id'] === $brand_id) $current_brand = $b;
+if ($brand_id > 0) {
+    foreach ($brands as $b) {
+        if ((int)$b['id'] === $brand_id) {
+            $current_brand = $b;
+            break;
+        }
+    }
+    if (!$current_brand) {
+        $cur_b_stmt = $pdo->prepare("SELECT * FROM brands WHERE id = ?");
+        $cur_b_stmt->execute([$brand_id]);
+        $current_brand = $cur_b_stmt->fetch() ?: null;
+    }
 }
 $has_filters = $keyword !== '' || $brand_id > 0 || $price !== '';
 
@@ -125,11 +165,11 @@ require_once __DIR__ . '/includes/header.php';
 <div class="container">
     <!-- Tiêu đề trang -->
     <header class="page-hero reveal">
-        <h1 class="page-title"><?= $current_category ? htmlspecialchars($current_category['name']) . '.' : 'Cửa hàng.' ?></h1>
+        <h1 class="page-title"><?= $current_category ? htmlspecialchars($current_category['name']) : 'Cửa hàng phụ kiện' ?></h1>
         <p class="page-sub">
             <?= $current_category && $current_category['description']
                 ? htmlspecialchars($current_category['description'])
-                : 'Cách tốt nhất để mua phụ kiện bạn yêu thích.' ?>
+                : 'Cách tốt nhất để chọn mua phụ kiện công nghệ bạn yêu thích' ?>
         </p>
     </header>
 
@@ -140,7 +180,13 @@ require_once __DIR__ . '/includes/header.php';
             Tất cả
         </a>
         <?php foreach ($categories as $cat): ?>
-            <a href="<?= htmlspecialchars(shop_url(['category' => (int)$cat['id']])) ?>" class="store-nav-item <?= $category_id === (int)$cat['id'] ? 'active' : '' ?>">
+            <?php
+            $cat_changes = ['category' => (int)$cat['id']];
+            if ($brand_id > 0 && !isset($brand_cat_ids[(int)$cat['id']])) {
+                $cat_changes['brand'] = null;
+            }
+            ?>
+            <a href="<?= htmlspecialchars(shop_url($cat_changes)) ?>" class="store-nav-item <?= $category_id === (int)$cat['id'] ? 'active' : '' ?>">
                 <span class="store-nav-icon"><i class="bi <?= htmlspecialchars($cat['icon']) ?>"></i></span>
                 <?= htmlspecialchars($cat['name']) ?>
             </a>
@@ -204,8 +250,8 @@ require_once __DIR__ . '/includes/header.php';
     <?php if (empty($products)): ?>
         <div class="empty-state mb-5 reveal">
             <i class="bi bi-search"></i>
-            <h3 class="section-title mt-3">Không tìm thấy sản phẩm.</h3>
-            <p class="section-sub mb-4">Thử từ khóa khác hoặc bỏ bớt bộ lọc nhé.</p>
+            <h3 class="section-title mt-3">Không tìm thấy sản phẩm</h3>
+            <p class="section-sub mb-4">Thử từ khóa khác hoặc bỏ bớt bộ lọc nhé</p>
             <a href="products.php" class="btn btn-primary">Xem tất cả phụ kiện</a>
         </div>
     <?php else: ?>
